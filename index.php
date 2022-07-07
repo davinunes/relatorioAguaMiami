@@ -279,12 +279,21 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 		$sql = "select * from h2o.leituras l WHERE l.sensor = ".$sensor." and l.`timestamp` BETWEEN $start AND $end ORDER by l.`id` asc";
 		// var_dump($sql);
 		$historico = DBQ($sql);
+		
+		$anterior = false;
 
 		foreach($historico as $i => $h){
 			$h[Valor] += $ajuste;
 			if($h[Valor] > 240){
 				continue;
 			}
+			if($anterior){
+				// var_dump($anterior);
+				$intervalo = strtotime($h[timestamp]) - $anterior;
+				// var_dump($intervalo);
+				
+			}
+			$anterior = strtotime($h[timestamp]);
 			$h[Valor] > $fosso ? $porcentagem = $fosso : $porcentagem = $h[Valor];
 			$date = date("Y-m-d H:i:s", strtotime($h[timestamp]));
 			$now = date("Y-m-d H:i:s");
@@ -298,6 +307,11 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 			$progresso = 100 - $progresso;
 			$progresso = round($progresso, 2);
 			$progresso = $h[Valor]*-1;
+			
+			if($intervalo > 200){// Necessário ser antes da série original para que o espaço vago seja notável
+				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
+				$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
+			}
 
 			// var_dump($h);
 			$dados .= "\t\t\t\t\t\t\t[";
@@ -456,7 +470,10 @@ function allLevels($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 			$progresso = 100*$porcentagem/$fosso;
 			$progresso = 100 - $progresso;
 			$progresso = round($progresso, 2);
-
+			if($intervalo > 200){// Necessário ser antes da série original para que o espaço vago seja notável
+				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
+				$dados .= "\t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
+			}
 			// var_dump($h);
 			$dados .= "\t[";
 			// $dados .= "Date.parse('$h[timestamp]')".",\t".$progresso;
@@ -468,10 +485,7 @@ function allLevels($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 			}else{
 				$dados .= ",\n";
 			}
-			if($intervalo > 200){
-				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
-				$dados .= "\t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp]))."), null],\n";
-			}
+			
 
 		
 		}
