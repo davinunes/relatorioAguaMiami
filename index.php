@@ -330,7 +330,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 
 
 		// echo "<div class=\"container\">";
-		echo "<div style='display: none;' class=\"agua col s12 m12 l6\">";
+		echo "<div style='display: none;' class='agua col s12'>";
 		echo "<div class=\"card-panel $defasado\">";
 			echo "<span class='card-title'></span>";
 			echo "<div id='grafico$sensor'></div>\n";
