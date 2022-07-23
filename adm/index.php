@@ -43,7 +43,7 @@ echo "<tr>";
 		echo "Profundidade";
 	echo "</th>";
 	echo "<th>";
-		echo "Editar";
+		echo "Ação";
 	echo "</th>";
 echo "</tr>";
 foreach($caixas as $c){
@@ -65,6 +65,7 @@ foreach($caixas as $c){
 		echo "</td>";
 		echo "<td>";
 			echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' caixa_fc='$c[alturaSonda]' caixa_fosso='$c[fosso]' class='editar waves-effect waves-light btn modal-trigger' href='#modal1'>Editar</a>";
+			// echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' class='red limpar  waves-effect waves-light btn modal-trigger' href='#modal2'>Limpar</a>";
 		echo "</td>";
 		
 	echo "</tr>";
@@ -76,12 +77,18 @@ echo "</table>";
 <script>
 	$(document).ready(function(){
 		$('.modal').modal();
+		$('.timepicker').timepicker();
 		$('.editar').click(function(){
 			$("#id").val($(this).attr("caixa_id"));
 			$("#nome").val($(this).attr("caixa_nome"));
 			$("#sensor").val($(this).attr("caixa_sensor"));
 			$("#alturaSonda").val($(this).attr("caixa_fc"));
 			$("#fosso").val($(this).attr("caixa_fosso"));
+		});
+		
+		$('.limpar').click(function(){
+			$("#id2").val($(this).attr("caixa_id"));
+			$("#sensor2").val($(this).attr("caixa_sensor"));
 		});
 		
 		$('#salvar').click(function(){
@@ -100,6 +107,27 @@ echo "</table>";
 				setTimeout(function() {
 				  location.reload();
 				}, 500);
+				
+				
+			});
+			
+			
+		});
+		
+		$('#clear').click(function(){
+			let dados = {
+				sensor: $("#sensor2").val(),
+				start: $("#start").val(),
+				end: $("#end").val()
+			}
+			console.log(dados);
+			
+			$.post("d.php", dados, function(retorna){
+				console.log(retorna);
+				M.toast({html: retorna});
+				setTimeout(function() {
+				  location.reload();
+				}, 20000);
 				
 				
 			});
@@ -153,3 +181,41 @@ echo "</table>";
       <a id='salvar' class="btn modal-close waves-effect waves-green btn-flat">Salvar</a>
     </div>
   </div>
+</div>
+  
+  <div id="modal2" class="modal">
+    <div class="modal-content">
+				 <div class="row">
+					<form class="col s12">
+					  <div class="row">
+						<div class="input-field col s6">
+						  <input disabled placeholder="0" id="id2" type="number" class="validate">
+						  <label for="id2">Caixa</label>
+						</div>
+
+						<div class="input-field col s6">
+						  <input disabled value="0" id="sensor2" type="number" class="validate">
+						  <label for="sensor2">Sensor</label>
+						</div>
+					  
+						<div class="input-field col s6">
+						
+							De <input id="start" name="start" type="datetime-local" class="browser-default" value="<?php echo date('Y-m-d\TH:i:s', time());?>">
+							
+						</div>
+						<div class="input-field col s6">
+						
+							Até <input id="end" name="end" type="datetime-local" class="browser-default" value="<?php echo date('Y-m-d\TH:i:s', time());?>">
+							
+						</div>
+				  <div class="row">
+					
+				  </div>
+				</form>
+			  </div>
+    </div>
+    <div class="modal-footer">
+      <a id='clear' class="btn modal-close waves-effect waves-green btn-flat">Deletar período</a>
+    </div>
+  </div>
+</div>

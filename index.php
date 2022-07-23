@@ -31,6 +31,14 @@
 	</form>
 </div >
 
+<script>
+Highcharts.setOptions({
+    time: {
+        timezone: 'America/Recife'
+    }
+}); 
+</script>
+
 <div class='row'>
 
 <?php
@@ -170,6 +178,12 @@ if(true){ // Gera o gráfico combinado
 	// echo "</div>";
 	
 	echo "\n <script>	\n";
+	echo "Highcharts.setOptions({
+				time: {
+					timezone: 'America/Recife'
+				}
+			}); ";
+	
 	echo "$('#grafico_comb').highcharts({	\n";
 	echo "	chart: { type: 'spline', zoomType:'x',
 			panning: {
@@ -240,7 +254,7 @@ if(true){ // Gera o gráfico combinado
 				}
 			}]
 	 },	\n";
-	echo "\t \t time: { useUTC: false },	\n";
+	echo "\t \t time: { useUTC: true },	\n";
 	echo "\t \t legend: { enabled: true },	\n";
 	echo "\t \t credits: { enabled: false },	\n";
 	echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
@@ -396,7 +410,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 				}
 				}]
 		 },	\n";
-		echo "\t \t time: { useUTC: false },	\n";
+		echo "\t \t time: { useUTC: true },	\n";
 		echo "\t \t legend: { enabled: false },	\n";
 		echo "\t \t credits: { enabled: false },	\n";
 		echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
