@@ -63,6 +63,25 @@ function dbSize(){
 	return $r[0]["Size(MB)"];
 }
 
+function dbRecords(){
+	
+	$sql = "SELECT count(1) as leituras from h2o.leituras WHERE sensor BETWEEN '1' and '6'";
+	$r = DBQ($sql);
+	
+	// var_dump($r);
+	return $r[0][leituras];
+}
+
+
+function dbstart(){
+	
+	$sql = "SELECT l.timestamp as leituras from h2o.leituras l WHERE l.sensor BETWEEN '1' and '6' order by l.id asc limit 1";
+	$r = DBQ($sql);
+	
+	$time = strtotime($r[0][leituras]);
+	return date('d-m-Y', $time);
+}
+
 if($_GET[start]){
 	$start = date("Y-m-d H:i:s", strtotime($_GET[start]));
 	$start = "'$start'";
@@ -270,7 +289,7 @@ if(true){ // Gera os históricos separados
 	}
 }
 
-echo "Tamanho do banco de dados: ".dbSize()."Mb";
+echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
 
 function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 	$defasado = "";
