@@ -25,8 +25,8 @@
 			<button class="btn waves-effect waves-light" type="submit" name="action">Filtrar</button>
 		</div>
 		<div class="input-field col s2">
-			<a style="display: none;" class="alternar btn waves-effect waves-light blue" >Combinar Gráficos</a>
-			<a  class="alternar btn waves-effect waves-light blue" >Detalhar Gráficos</a>
+			<a style="display: none;" class="alternar btn waves-effect waves-light blue" >Detalhar Gráficos</a>
+			<a  class="alternar btn waves-effect waves-light blue" >Combinar Gráficos</a>
 		</div>
 	</form>
 </div >
@@ -102,7 +102,7 @@ if($_GET[end]){
 }
 
 if(true){ // Seleciona quais caixas farão parte do relatório
-	$sql = "select * from h2o.reservatorio r where r.sensor <= '6' order by r.nome asc";
+	$sql = "select * from h2o.reservatorio r where r.sensor <= '6' and r.ativo = true order by r.nome asc";
 	$caixas = DBQ($sql);
 }
 
@@ -114,7 +114,7 @@ if(true){ // Monta o Gráfico de Colunas
 	$Series 	.= "]";
 	// var_dump($Series);
 	
-	echo "<div id='barras' style='' class=' col s12'>";
+	echo "<div id='barras' style='display:none' class=' col s12'>";
 	echo "<div class='card-panel'>";
 		echo "<span class='card-title'></span>";
 		echo "<div id='grafico_barras'></div>\n";
@@ -188,7 +188,7 @@ if(true){ // Gera o gráfico combinado
 	// $a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.parse('".$now."'),1]\n]}\n]";
 	$a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($now))."),1]\n]}\n]";
 	
-	echo "<div id='combinados' class=\"agua col s12\">";
+	echo "<div id='combinados' style='display:none'  class=\"agua col s12\">";
 	echo "<div class=\"card-panel $defasado\">";
 		echo "<span class='card-title'></span>";
 		echo "<div id='grafico_comb'></div>\n";
@@ -363,7 +363,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 
 
 		// echo "<div class=\"container\">";
-		echo "<div style='display: none;' class='agua col s12'>";
+		echo "<div style='' class='agua col s12'>";
 		echo "<div class=\"card-panel $defasado\">";
 			echo "<span class='card-title'></span>";
 			echo "<div id='grafico$sensor'></div>\n";

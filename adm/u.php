@@ -7,6 +7,7 @@ $sql .= " set  ";
 $sql .= " alturaSonda = ".$_POST[alturaSonda];
 $sql .= " ,fosso = ".$_POST[fosso];
 $sql .= " ,nome =  '".$_POST[nome]."'";
+$sql .= " ,ativo =  '".$_POST[ativo]."'";
 $sql .= " where  ";
 $sql .= " id =  ".$_POST[id];
 

@@ -64,7 +64,7 @@ foreach($caixas as $c){
 			echo $c[fosso];
 		echo "</td>";
 		echo "<td>";
-			echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' caixa_fc='$c[alturaSonda]' caixa_fosso='$c[fosso]' class='editar waves-effect waves-light btn modal-trigger' href='#modal1'>Editar</a>";
+			echo "<a caixa_id='$c[id]' ativo='$c[ativo]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' caixa_fc='$c[alturaSonda]' caixa_fosso='$c[fosso]' class='editar waves-effect waves-light btn modal-trigger' href='#modal1'>Editar</a>";
 			// echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' class='red limpar  waves-effect waves-light btn modal-trigger' href='#modal2'>Limpar</a>";
 		echo "</td>";
 		
@@ -80,6 +80,7 @@ echo "</table>";
 		$('.timepicker').timepicker();
 		$('.editar').click(function(){
 			$("#id").val($(this).attr("caixa_id"));
+			$("#ativo").val($(this).attr("ativo"));
 			$("#nome").val($(this).attr("caixa_nome"));
 			$("#sensor").val($(this).attr("caixa_sensor"));
 			$("#alturaSonda").val($(this).attr("caixa_fc"));
@@ -97,7 +98,8 @@ echo "</table>";
 				nome: $("#nome").val(),
 				sensor: $("#sensor").val(),
 				alturaSonda: $("#alturaSonda").val(),
-				fosso: $("#fosso").val()
+				fosso: $("#fosso").val(),
+				ativo: $("#ativo").val()
 			}
 			console.log(dados);
 			
@@ -143,11 +145,15 @@ echo "</table>";
 				 <div class="row">
 				<form class="col s12">
 				  <div class="row">
-					<div class="input-field col s3">
+					<div class="input-field col s2">
 					  <input disabled placeholder="0" id="id" type="number" class="validate">
 					  <label for="id">Caixa</label>
 					</div>
 					
+					<div class="input-field col s1">
+					  <input id="ativo" type="number" min="0" max="1" class="validate" placeholder="0">
+					  <label for="ativo">Caixa</label>
+					</div>
 				  
 				  
 					<div class="input-field col s3">
