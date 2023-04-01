@@ -45,7 +45,9 @@ echo "<tr>";
 	echo "<th>";
 		echo "Ação";
 	echo "</th>";
-echo "</tr>";
+echo "</tr>
+<br>
+<a href='../'>Voltar</a>";
 foreach($caixas as $c){
 	echo "<tr>";
 		echo "<td>";
@@ -152,7 +154,7 @@ echo "</table>";
 					
 					<div class="input-field col s1">
 					  <input id="ativo" type="number" min="0" max="1" class="validate" placeholder="0">
-					  <label for="ativo">Caixa</label>
+					  <label for="ativo">Ativo</label>
 					</div>
 				  
 				  

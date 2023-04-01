@@ -186,7 +186,7 @@ if(true){ // Gera o gráfico combinado
 		$a .= allLevels($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
 	}
 	// $a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.parse('".$now."'),1]\n]}\n]";
-	$a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($now))."),1]\n]}\n]";
+	$a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),1]\n]}\n]";
 	
 	echo "<div id='combinados' style='display:none'  class=\"agua col s12\">";
 	echo "<div class=\"card-panel $defasado\">";
@@ -291,6 +291,7 @@ if(true){ // Gera os históricos separados
 
 echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
 
+
 function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 	$defasado = "";
 	$aviso = "";
@@ -334,7 +335,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 				$now = date("Y-m-d H:i:s", strtotime($_GET[end]));
 			};
 			// $pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.parse('".$now."'),1]],	\n	 	 	 }]	\n";
-			$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,m,d,H,i,s', strtotime($now))."),-180]],	\n	 	 	 }]	\n"; //Date.UTC(".date('Y,m,d,H,i,s', strtotime($now)).")
+			$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),-180]],	\n	 	 	 }]	\n"; //Date.UTC(".date('Y,m,d,H,i,s', strtotime($now)).")
 			// var_dump($date);
 			$progresso = 100*$porcentagem/$fosso;
 			$progresso = 100 - $progresso;
@@ -343,13 +344,13 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 			
 			if($intervalo > 200){// Necessário ser antes da série original para que o espaço vago seja notável
 				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
-				$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
+				$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
 			}
 
 			// var_dump($h);
 			$dados .= "\t\t\t\t\t\t\t[";
 			// $dados .= "Date.parse('$h[timestamp]')".",".$progresso; 
-			$dados .= "Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp])).")".",".$progresso;
+			$dados .= "Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp])).")".",".$progresso;
 			// $dados .= $progresso;
 			$dados .= "]";
 			if($i === array_key_last($historico)){
@@ -385,10 +386,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 					subtitle: {
 					text: 'Ultima atualização: $ult $aviso <br> Lembre-se que neste modo o gráfico representa o quanto a caixa está vazia.'
 				  },	\n";
-		echo "\t \t xAxis: {  type: 'datetime',dateTimeLabelFormats: { // don't display the dummy year
-				month: '%e. %b',
-				year: '%b'
-			},
+		echo "\t \t xAxis: {  type: 'datetime',format: '{value:% H:% M}',
 			title: {
 				text: 'Data/Hora'
 			}},	\n";
@@ -396,7 +394,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 				headerFormat: '<b>{series.name}</b><br>',
 				pointFormat: '{point.x:%e. %b}: {point.y:.2f} m'
 							},
-		title: { text: 'percentual' }, 
+		title: { text: 'centimetros' }, 
 		plotBands: [{ // Pouca água
 				from: 0,
 				to: -30,
@@ -434,7 +432,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 		echo "\t \t credits: { enabled: false },	\n";
 		echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
 		echo "\t \t series: [{ name: '$nome',	\n";
-		echo "\t \t \t \t \t data: [\n".$dados." \n\t\t\t\t\t\t\t],\n\tcolor: '$cor[$sensor]'	\n";
+		echo "\t \t \t \t \t data: [\n".$dados." \n\t\t\t\t\t\t\t],\n\tcolor: '$cor[1]'	\n";
 		echo $pontoDeControle;
 		echo "\t \t });	\n";
 		echo "</script>	\n";
@@ -498,19 +496,19 @@ function allLevels($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 				$now = date("Y-m-d H:i:s", strtotime($_GET[end]));
 			};
 			// $pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.parse('".$now."'),1]],	\n	 	 	 }]	\n";
-			$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,m,d,H,i,s', strtotime($now))."),1]],	\n	 	 	 }]	\n";
+			$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),1]],	\n	 	 	 }]	\n";
 			// var_dump($date); date('Y,m,d,H,i,s', $h[timestamp])
 			$progresso = 100*$porcentagem/$fosso;
 			$progresso = 100 - $progresso;
 			$progresso = round($progresso, 2);
 			if($intervalo > 200){// Necessário ser antes da série original para que o espaço vago seja notável
 				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
-				$dados .= "\t[Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
+				$dados .= "\t[Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
 			}
 			// var_dump($h);
 			$dados .= "\t[";
 			// $dados .= "Date.parse('$h[timestamp]')".",\t".$progresso;
-			$dados .= "Date.UTC(".date('Y,m,d,H,i,s', strtotime($h[timestamp])).")".",\t".$progresso;
+			$dados .= "Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp])).")".",\t".$progresso;
 			// $dados .= $progresso;
 			$dados .= "]";
 			if($i === array_key_last($historico)){
