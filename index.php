@@ -84,7 +84,7 @@ function dbstart(){
 	return date('d-m-Y', $time);
 }
 
-if($_GET[start]){
+if($_GET['start']){
 	$start = date("Y-m-d H:i:s", strtotime($_GET[start]));
 	$start = "'$start'";
 }else{
@@ -93,7 +93,7 @@ if($_GET[start]){
 	$start = "'$start'";
 }
 
-if($_GET[end]){
+if($_GET['end']){
 	$end = date("Y-m-d H:i:s", strtotime($_GET[end]));
 	$end = "'$end'";
 	$zoomFiltro = true;
