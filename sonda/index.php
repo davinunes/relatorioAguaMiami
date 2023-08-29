@@ -1,6 +1,6 @@
 <?php
-error_reporting(E_ALL & ~E_NOTICE);
-error_reporting(E_ALL & ~E_WARNING);
+error_reporting(E_ALL & ~(E_NOTICE | E_WARNING));
+
 include "../database.php";
 
 $sql .= "INSERT INTO h2o.leituras (sensor, Valor) VALUES($_GET[sensor], $_GET[valor])";
