@@ -43,6 +43,7 @@ Highcharts.setOptions({
 
 <?php
 error_reporting(E_ALL & ~E_NOTICE);
+error_reporting(E_ALL & ~E_WARNING);
 
 // delete from h2o.leituras WHERE sensor = 4 and `timestamp` BETWEEN '2022-03-14 14:03:00' and '2022-04-01 16:39:00' and Valor > 200
 
