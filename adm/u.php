@@ -1,6 +1,7 @@
 <?php
 
 include "../database.php";
+error_reporting(E_ERROR | E_PARSE);
 
 $sql  = " update h2o.reservatorio ";
 $sql .= " set  ";

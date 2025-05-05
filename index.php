@@ -1,12 +1,9 @@
 <meta http-equiv="refresh" content="180" />
 
-<script src="https://code.jquery.com/jquery-3.4.1.min.js"
-  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
-  crossorigin="anonymous"></script>
-<script src="http://code.highcharts.com/highcharts.src.js?_ga=2.104238400.1920627742.1655390902-1542149141.1655390902"></script>
-<script src="https://code.highcharts.com/modules/exporting.js"></script>
-<script src="https://code.highcharts.com/modules/export-data.js"></script>
-<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+<script src="https://code.highcharts.com/11.1.0/highcharts.js"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 <link rel="stylesheet" href="css.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
@@ -43,7 +40,6 @@ Highcharts.setOptions({
 
 <?php
 error_reporting(E_ALL & ~(E_NOTICE | E_WARNING));
-
 
 // delete from h2o.leituras WHERE sensor = 4 and `timestamp` BETWEEN '2022-03-14 14:03:00' and '2022-04-01 16:39:00' and Valor > 200
 
@@ -107,64 +103,6 @@ if(true){ // Seleciona quais caixas farão parte do relatório
 	$sql = "select * from h2o.reservatorio r where r.sensor <= '6' and r.ativo = true order by r.nome asc";
 	$caixas = DBQ($sql);
 }
-
-if(true){ // Monta o Gráfico de Colunas
-	$Series 	.= "series: [";
-	foreach($caixas as $caixa){
-		$Series 	.= barras($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
-	}
-	$Series 	.= "]";
-	// var_dump($Series);
-	
-	echo "<div id='barras' style='display:none' class=' col s12'>";
-	echo "<div class='card-panel'>";
-		echo "<span class='card-title'></span>";
-		echo "<div id='grafico_barras'></div>\n";
-	echo "</div>";
-	echo "</div>";
-	
-	echo "<script>	\n";
-	echo "\t $('#grafico_barras').highcharts({	\n";
-	echo "chart: {
-					type: 'column'
-				  },
-				  title: {
-					text: 'Nivel aproximado dos reservatórios'
-				  },
-				  subtitle: {
-					text: 'Torres com leitura defasada há mais de 1h não serão listadas'
-				  },
-				  xAxis: {categories: ['Reservatório'],
-					crosshair: false
-				  },
-				  yAxis: {
-					title: {
-					  text: 'Percentual'
-					}
-				  },
-				  plotOptions: {
-					column: {
-					  pointPadding: 0.2,
-					  borderWidth: 1
-					},series: {
-						dataLabels: {
-							enabled: true,
-							inside: true,
-							style: {
-								fontSize: '18px'
-							  },
-							borderRadius: 2,
-							y: -5,
-							shape: 'callout'
-						}
-					}
-				  },
-				  ".$Series;
-	echo "\t \t });	\n";
-	echo "</script>	\n";
-	
-}
-
 ?>
 <div class="progress">
 	<div id='timer' class="determinate" style="width: 0%"></div>
@@ -181,118 +119,15 @@ function updateProgressbar(){
 </script>
 <?php
 
-if(true){ // Gera o gráfico combinado
-	$now = date("Y-m-d H:i:s");
-	$a 	.= "series: [\n";
-	foreach($caixas as $caixa){
-		$a .= allLevels($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
-	}
-	// $a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.parse('".$now."'),1]\n]}\n]";
-	$a 	.= "{ name: 'Referência', 	data: \n[\n \t[Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),1]\n]}\n]";
-	
-	echo "<div id='combinados' style='display:none'  class=\"agua col s12\">";
-	echo "<div class=\"card-panel $defasado\">";
-		echo "<span class='card-title'></span>";
-		echo "<div id='grafico_comb'></div>\n";
-	echo "</div>";
-	echo "</div>";
-	// echo "</div>";
-	
-	echo "\n <script>	\n";
-	echo "Highcharts.setOptions({
-				time: {
-					timezone: 'America/Recife'
-				}
-			}); ";
-	
-	echo "$('#grafico_comb').highcharts({	\n";
-	echo "	chart: { type: 'spline', zoomType:'x',
-			panning: {
-				enabled: true,
-				type: 'x'
-			},
-			panKey:'shift',
-			},
-			legend: {
-				layout: 'vertical',
-				align: 'right',
-				verticalAlign: 'middle'
-			},	\n";
-	echo "title: { text: 'Histórico do nível da água das torres' },	\n";
-	echo "xAxis: {  type: 'datetime',dateTimeLabelFormats: { 
-			month: '%e. %b',
-			year: '%b'
-		},
-		plotOptions: {
-			series: {
-				connectNulls: false,
-				lineWidth: 1
-			}
-		},
-		title: {
-			text: 'Data/Hora'
-		}},	\n";
-	echo "yAxis: { tooltip: {
-			headerFormat: '<b>{series.name}</b><br>',
-			pointFormat: '{point.x:%e. %b}: {point.y:.2f} m'
-			},
-	title: { text: 'Percentual' }, 
-	plotOptions: {
-			series: {
-				connectNulls: false,
-				lineWidth: 15
-			}
-		},
-	plotBands: [{ // Pouca água
-				from: 0,
-				to: 50,
-				color: 'rgba(227, 22, 22, 0.1)',
-				label: {
-					text: 'Preocupante',
-					style: {
-						color: '#606060'
-					}
-				}
-			}, { // Light breeze
-				from: 50,
-				to: 85,
-				color: 'rgba(29, 27, 22, 0.1)',
-				label: {
-					text: 'normal',
-					style: {
-						color: '#606060'
-					}
-				}
-			}, { // Gentle breeze
-				from: 85,
-				to: 110,
-				color: 'rgba(68, 170, 213, 0.1)',
-				label: {
-					text: 'Nivel de Trabalho da Boia',
-					style: {
-						color: '#606060'
-					}
-				}
-			}]
-	 },	\n";
-	echo "\t \t time: { useUTC: true },	\n";
-	echo "\t \t legend: { enabled: true },	\n";
-	echo "\t \t credits: { enabled: false },	\n";
-	echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
-	echo $a;
-	echo "\t \t });	\n";
-	echo "</script>	\n";
-	
-}
-
 if(true){ // Gera os históricos separados
 	foreach($caixas as $caixa){
+		// if ($caixa[sensor] != 1) continue;
 		historico($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
 	}
+	// historico(1, $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
 }
 
 echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
-
 
 function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 	$defasado = "";
@@ -375,7 +210,8 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 		// echo "</div>";
 		
 		echo "\n\n<script>	\n";
-		echo "\t $('#grafico$sensor').highcharts({	\n";
+		// echo "\t $('#grafico$sensor').highcharts({	\n";
+		echo "\t Highcharts.chart('grafico$sensor', { \n";
 		echo "\t \t chart: { type: 'spline',
 				zoomType:'x',
 				panning: {
@@ -386,9 +222,9 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 				},	\n";
 		echo "\t \t title: { text: 'Histórico do nível da água: $nome' },
 					subtitle: {
-					text: 'Ultima atualização: $ult $aviso <br> Lembre-se que neste modo o gráfico representa o quanto a caixa está vazia.'
+					text: 'Ultima atualização: $ult $aviso'
 				  },	\n";
-		echo "\t \t xAxis: {  type: 'datetime',format: '{value:% H:% M}',
+		echo "\t \t xAxis: {  type: 'datetime',
 			title: {
 				text: 'Data/Hora'
 			}},	\n";

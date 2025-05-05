@@ -6,6 +6,8 @@
 
 include "../database.php";
 
+error_reporting(E_ERROR | E_PARSE);
+
 if(true){ // Seleciona quais caixas farão parte do relatório
 	$sql = "select * from h2o.reservatorio r where r.sensor <= '6' order by r.nome asc";
 	$caixas = DBQ($sql);
@@ -67,7 +69,7 @@ foreach($caixas as $c){
 		echo "</td>";
 		echo "<td>";
 			echo "<a caixa_id='$c[id]' ativo='$c[ativo]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' caixa_fc='$c[alturaSonda]' caixa_fosso='$c[fosso]' class='editar waves-effect waves-light btn modal-trigger' href='#modal1'>Editar</a>";
-			// echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' class='red limpar  waves-effect waves-light btn modal-trigger' href='#modal2'>Limpar</a>";
+			echo "<a caixa_id='$c[id]' caixa_nome='$c[nome]' caixa_sensor='$c[sensor]' class='red limpar  waves-effect waves-light btn modal-trigger' href='#modal2'>Limpar</a>";
 		echo "</td>";
 		
 	echo "</tr>";

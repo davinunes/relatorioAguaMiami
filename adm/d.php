@@ -1,6 +1,7 @@
 <?php
 
 include "../database.php";
+error_reporting(E_ERROR | E_PARSE);
 
 $start = str_replace("T"," ",$_POST[start]);
 $end = str_replace("T"," ",$_POST[end]);
