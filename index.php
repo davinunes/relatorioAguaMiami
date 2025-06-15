@@ -120,11 +120,14 @@ function updateProgressbar(){
 <?php
 
 if(true){ // Gera os históricos separados
-	foreach($caixas as $caixa){
-		// if ($caixa[sensor] != 1) continue;
-		historico($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
+	if(isset($_GET[umSensor])){
+		historico($_GET[umSensor], 200, "Sensor: ".$_GET[umSensor], $start, $end, $zoomFiltro, 0);
+	}else{
+		foreach($caixas as $caixa){
+			historico($caixa[sensor], $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
+		}
+		
 	}
-	// historico(1, $caixa[fosso], $caixa[nome], $start, $end, $zoomFiltro, $caixa[alturaSonda]);
 }
 
 echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
@@ -155,7 +158,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 
 		foreach($historico as $i => $h){
 			$h[Valor] += $ajuste;
-			if($h[Valor] > 240){
+			if($h[Valor] > 240 or $h[Valor] == 0){
 				continue;
 			}
 			if($anterior){
@@ -179,7 +182,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 			$progresso = round($progresso, 2);
 			$progresso = $h[Valor]*-1;
 			
-			if($intervalo > 200){// Necessário ser antes da série original para que o espaço vago seja notável
+			if($intervalo > 600){// Necessário ser antes da série original para que o espaço vago seja notável
 				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
 				$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
 			}
