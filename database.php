@@ -1,6 +1,5 @@
 <?php
 
-
 define('DB_HOSTNAME', 'localhost');
 define('DB_DATABASE', 'h2o');
 define('DB_USERNAME', 'ilunne');
@@ -8,7 +7,6 @@ define('DB_PASSWORD', 'yuk11nn4');
 define('DB_PREFIX', '');
 define('DB_CHARSET', 'utf8');
 
-// var_dump(getenv());
 
 function DBConnect(){ # Abre Conexão com Database
 	$link = @mysqli_connect(DB_HOSTNAME, DB_USERNAME, DB_PASSWORD, DB_DATABASE) or die(mysqli_connect_error());
@@ -49,17 +47,17 @@ function DBExecute($query){ # Executa um Comando na Conexão
 function DBQ($query){ # Executa um Comando na Conexão
 	$link = DBConnect();
 	$result = mysqli_query($link,$query) or die(mysqli_error($link));
-	
 	DBClose($link);
-	if(!mysqli_num_rows($result)){
 
-	}else{
+	// A CORREÇÃO: Inicializa a variável como um array vazio.
+	$dados = []; 
+
+	if(mysqli_num_rows($result) > 0){
 		while($retorno = mysqli_fetch_assoc($result)){
 			$dados[] = $retorno;
 		}
 	}
+	
 	return $dados;
 }
-
-
 ?>
