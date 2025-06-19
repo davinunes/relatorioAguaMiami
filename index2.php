@@ -321,6 +321,7 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 }
 
 
+?>
 
 </div>
 
