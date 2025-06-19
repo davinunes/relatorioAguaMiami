@@ -7,26 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
 <link rel="stylesheet" href="css.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-<div class='container'>
-<div class='row'>
-	<form class="col s12">
-		<div class="input-field col l2 s4">
-			<input id="start" name="start" type="date" class="validate">
-			<label for="start">De</label>
-		</div>
-		<div class="input-field col l2 s4">
-			<input id="end" name="end" type="date" class="validate">
-			<label for="end">Até</label>
-		</div>
-		<div class="input-field col s2">
-			<button class="btn waves-effect waves-light" type="submit" name="action">Filtrar</button>
-		</div>
-		<div class="input-field col s2">
-			<a style="display: none;" class="alternar btn waves-effect waves-light blue" >Detalhar Gráficos</a>
-			<a  class="alternar btn waves-effect waves-light blue" >Combinar Gráficos</a>
-		</div>
-	</form>
-</div >
+<div class=''>
 
 <script>
 Highcharts.setOptions({
@@ -140,16 +121,32 @@ function updateProgressbar(){
 <meta http-equiv="refresh" content="180" />
 <div class='container'>
     <div class="row">
-        <div class="col s10">
+        <div class="col s4">
             <h5>Bem-vindo, <?= htmlspecialchars($_SESSION['user_name']) ?>!</h5>
         </div>
-        <div class="col s2 right-align">
+	</div>
+	<div class="row">
+		<form class="col s12">
+		<div class="input-field col l4 s4">
+			<input id="start" name="start" type="date" class="validate">
+			<label for="start">De</label>
+		</div>
+		<div class="input-field col l4 s4">
+			<input id="end" name="end" type="date" class="validate">
+			<label for="end">Até</label>
+		</div>
+		<div class="input-field col l2 s2">
+			<button class="btn waves-effect waves-light" type="submit" name="action">Filtrar</button>
+		</div>
+        <div class="input-field col l2 s2 right-align">
             <a href="logout.php" class="btn red">Sair</a>
         </div>
+	</form>
     </div>
     
-    <div class='row'>
+    
 </div>
+
 <?php
 
 if(true){ // Gera os históricos separados
@@ -158,19 +155,19 @@ if(true){ // Gera os históricos separados
 	}else if (empty($caixas)) {
         echo "<div class='col s12'><div class='card-panel yellow lighten-3'><p>Nenhum sensor associado a este usuário. Peça ao administrador para configurar seu acesso em <a href='usuarios.php'>Gerenciar Usuários</a>.</p></div></div>";
     } else {
-        // ... sua lógica para chamar a função historico ...
+        
         foreach($caixas as $caixa){
             historico($caixa['sensor'], $caixa['fosso'], $caixa['nome'], $start, $end, $zoomFiltro, $caixa['alturaSonda']);
         }
     }
 }
 
-echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
+// echo "Tamanho do banco de dados: ".dbSize()."Mb sendo ".dbRecords()." leituras desde ".dbstart();
 
 function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 	$defasado = "";
-	$aviso = "";
 	global $cor;
+	$aviso = "";
 	$sql = "select * from h2o.leituras l WHERE l.sensor = ".$sensor." ORDER  by l.id desc limit 1";
 	$ultimo = DBQ($sql);
 	if($ultimo != NULL){
@@ -188,133 +185,142 @@ function historico($sensor, $fosso, $nome, $start, $end, $zoomFiltro, $ajuste){
 		$sql = "select * from h2o.leituras l WHERE l.sensor = ".$sensor." and l.`timestamp` BETWEEN $start AND $end ORDER by l.`id` asc";
 		// var_dump($sql);
 		$historico = DBQ($sql);
-		
-		$anterior = false;
 
-		foreach($historico as $i => $h){
-			$h[Valor] += $ajuste;
-			if($h[Valor] > 240 or $h[Valor] == 0){
-				continue;
-			}
-			if($anterior){
-				// var_dump($anterior);
-				$intervalo = strtotime($h[timestamp]) - $anterior;
-				// var_dump($intervalo);
+		
+		if (!empty($historico)) {
+		
+			$anterior = false;
+
+			foreach($historico as $i => $h){
+				$h[Valor] += $ajuste;
+				if($h[Valor] > 220 or $h[Valor] < 2){
+					continue;
+				}
+				if($anterior){
+					// var_dump($anterior);
+					$intervalo = strtotime($h[timestamp]) - $anterior;
+					// var_dump($intervalo);
+					
+				}
+				$anterior = strtotime($h[timestamp]);
+				$h[Valor] > $fosso ? $porcentagem = $fosso : $porcentagem = $h[Valor];
+				$date = date("Y-m-d H:i:s", strtotime($h[timestamp]));
+				$now = date("Y-m-d H:i:s");
+				if($zoomFiltro){
+					$now = date("Y-m-d H:i:s", strtotime($_GET[end]));
+				};
+				// $pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.parse('".$now."'),1]],	\n	 	 	 }]	\n";
+				$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),-180]],	\n	 	 	 }]	\n"; //Date.UTC(".date('Y,m,d,H,i,s', strtotime($now)).")
+				// var_dump($date);
+				$progresso = 100*$porcentagem/$fosso;
+				$progresso = 100 - $progresso;
+				$progresso = round($progresso, 2);
+				$progresso = $h[Valor]*-1;
 				
-			}
-			$anterior = strtotime($h[timestamp]);
-			$h[Valor] > $fosso ? $porcentagem = $fosso : $porcentagem = $h[Valor];
-			$date = date("Y-m-d H:i:s", strtotime($h[timestamp]));
-			$now = date("Y-m-d H:i:s");
-			if($zoomFiltro){
-				$now = date("Y-m-d H:i:s", strtotime($_GET[end]));
-			};
-			// $pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.parse('".$now."'),1]],	\n	 	 	 }]	\n";
-			$pontoDeControle = "\t \t \t },{ name: 'now', \n data: [  \n  [Date.UTC(".date('Y,', strtotime($now)).(date('m', strtotime($now))-1).date(',d,H,i,s', strtotime($now))."),-180]],	\n	 	 	 }]	\n"; //Date.UTC(".date('Y,m,d,H,i,s', strtotime($now)).")
-			// var_dump($date);
-			$progresso = 100*$porcentagem/$fosso;
-			$progresso = 100 - $progresso;
-			$progresso = round($progresso, 2);
-			$progresso = $h[Valor]*-1;
+				if($intervalo > 600){// Necessário ser antes da série original para que o espaço vago seja notável
+					// $dados .= "\t[Date.parse('$datavazia'), null],\n";
+					$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
+				}
+
+				// var_dump($h);
+				$dados .= "\t\t\t\t\t\t\t[";
+				// $dados .= "Date.parse('$h[timestamp]')".",".$progresso; 
+				$dados .= "Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp])).")".",".$progresso;
+				// $dados .= $progresso;
+				$dados .= "]";
+				if($i === array_key_last($historico)){
+					
+				}else{
+					$dados .= ",\n";
+				}
 			
-			if($intervalo > 600){// Necessário ser antes da série original para que o espaço vago seja notável
-				// $dados .= "\t[Date.parse('$datavazia'), null],\n";
-				$dados .= "\t\t\t\t\t\t\t[Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp]))."), null],//".$intervalo."\n";
 			}
 
-			// var_dump($h);
-			$dados .= "\t\t\t\t\t\t\t[";
-			// $dados .= "Date.parse('$h[timestamp]')".",".$progresso; 
-			$dados .= "Date.UTC(".date('Y,', strtotime($h[timestamp])).(date('m', strtotime($h[timestamp]))-1).date(',d,H,i,s', strtotime($h[timestamp])).")".",".$progresso;
-			// $dados .= $progresso;
-			$dados .= "]";
-			if($i === array_key_last($historico)){
-				
-			}else{
-				$dados .= ",\n";
-			}
-		
-		}
-		// var_dump();
-
-
-		// echo "<div class=\"container\">";
-		echo "<div style='' class='agua col s12'>";
-		echo "<div class=\"card-panel $defasado\">";
-			echo "<span class='card-title'></span>";
-			echo "<div id='grafico$sensor'></div>\n";
-		echo "</div>";
-		echo "</div>";
-		// echo "</div>";
-		
-		echo "\n\n<script>	\n";
-		// echo "\t $('#grafico$sensor').highcharts({	\n";
-		echo "\t Highcharts.chart('grafico$sensor', { \n";
-		echo "\t \t chart: { type: 'spline',
-				zoomType:'x',
-				panning: {
-					enabled: true,
-					type: 'x'
-				},
-				panKey:'shift',
-				},	\n";
-		echo "\t \t title: { text: 'Histórico do nível da água: $nome' },
-					subtitle: {
-					text: 'Ultima atualização: $ult $aviso'
-				  },	\n";
-		echo "\t \t xAxis: {  type: 'datetime',
-			title: {
-				text: 'Data/Hora'
-			}},	\n";
-		echo "\t \t yAxis: { tooltip: {
-				headerFormat: '<b>{series.name}</b><br>',
-				pointFormat: '{point.x:%e. %b}: {point.y:.2f} m'
-							},
-		title: { text: 'centimetros' }, 
-		plotBands: [{ // Pouca água
-				from: 0,
-				to: -30,
-				color: 'rgba(227, 22, 22, 0.1)',
-				label: {
-					text: 'Nivel de Trabalho da Boia',
-					style: {
-						color: '#606060'
+			echo "<div style='' class='agua col s12'>";
+			echo "<div class=\"card-panel $defasado\">";
+				echo "<span class='card-title'></span>";
+				echo "<div id='grafico$sensor'></div>\n";
+			echo "</div>";
+			echo "</div>";
+			
+			echo "\n\n<script>	\n";
+			// echo "\t $('#grafico$sensor').highcharts({	\n";
+			echo "\t Highcharts.chart('grafico$sensor', { \n";
+			echo "\t \t chart: { type: 'spline',
+					zoomType:'x',
+					panning: {
+						enabled: true,
+						type: 'x'
+					},
+					panKey:'shift',
+					},	\n";
+			echo "\t \t title: { text: 'Histórico do nível da água: $nome' },
+						subtitle: {
+						text: 'Ultima atualização: $ult $aviso'
+					  },	\n";
+			echo "\t \t xAxis: {  type: 'datetime',
+				title: {
+					text: 'Data/Hora'
+				}},	\n";
+			echo "\t \t yAxis: { tooltip: {
+					headerFormat: '<b>{series.name}</b><br>',
+					pointFormat: '{point.x:%e. %b}: {point.y:.2f} m'
+								},
+			title: { text: 'centimetros' }, 
+			plotBands: [{ // Pouca água
+					from: 0,
+					to: -30,
+					color: 'rgba(227, 22, 22, 0.1)',
+					label: {
+						text: '...',
+						style: {
+							color: '#606060'
+						}
 					}
-				}
-			}, { // Light breeze
-				from: -31,
-				to: -100,
-				color: 'rgba(29, 27, 22, 0.1)',
-				label: {
-					text: 'Normal',
-					style: {
-						color: '#606060'
+				}, { // Light breeze
+					from: -31,
+					to: -100,
+					color: 'rgba(29, 27, 22, 0.1)',
+					label: {
+						text: '...',
+						style: {
+							color: '#606060'
+						}
 					}
-				}
-			}, { // Gentle breeze
-				from: -100,
-				to: -240,
-				color: 'rgba(68, 170, 213, 0.1)',
-				label: {
-					text: 'Melhor correr',
-					style: {
-						color: '#606060'
+				}, { // Gentle breeze
+					from: -100,
+					to: -240,
+					color: 'rgba(68, 170, 213, 0.1)',
+					label: {
+						text: '...',
+						style: {
+							color: '#606060'
+						}
 					}
-				}
-				}]
-		 },	\n";
-		echo "\t \t time: { useUTC: true },	\n";
-		echo "\t \t legend: { enabled: false },	\n";
-		echo "\t \t credits: { enabled: false },	\n";
-		echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
-		echo "\t \t series: [{ name: '$nome',	\n";
-		echo "\t \t \t \t \t data: [\n".$dados." \n\t\t\t\t\t\t\t],\n\tcolor: '$cor[1]'	\n";
-		echo $pontoDeControle;
-		echo "\t \t });	\n";
-		echo "</script>	\n";
+					}]
+			 },	\n";
+			echo "\t \t time: { useUTC: true },	\n";
+			echo "\t \t legend: { enabled: false },	\n";
+			echo "\t \t credits: { enabled: false },	\n";
+			echo "\t \t tooltip: { shared: true }, exporting: { enabled: true },	\n";
+			echo "\t \t series: [{ name: '$nome',	\n";
+			echo "\t \t \t \t \t data: [\n".$dados." \n\t\t\t\t\t\t\t],\n\tcolor: '$cor[1]'	\n";
+			echo $pontoDeControle;
+			echo "\t \t });	\n";
+			echo "</script>	\n";
+			
+		}else {
+            // Mensagem que aparece se não houver dados no período
+            echo "<div class='col s12'>";
+            echo "  <div class='card-panel teal lighten-5'>";
+            echo "    <p class='center-align'>Nenhum dado de leitura encontrado para o sensor '<strong>".htmlspecialchars($nome)."</strong>' no período selecionado.</p>";
+            echo "  </div>";
+            echo "</div>";
+        }
 	}
 }
-?>
+
+
 
 </div>
 

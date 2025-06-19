@@ -1,23 +1,29 @@
 <?php
-
 include "../database.php";
-error_reporting(E_ERROR | E_PARSE);
+session_start(); // Inicia sessão para verificar permissão
 
-$start = str_replace("T"," ",$_POST[start]);
-$end = str_replace("T"," ",$_POST[end]);
-
-$sql  = " delete";
-$sql .= " from h2o.leituras";
-$sql .= " where";
-$sql .= " sensor = ".$_POST[sensor];
-$sql .= " AND date(`timestamp`) BETWEEN date('".$start."') and date('".$end."')";
-
-// echo $sql;
-
-if(DBExecute($sql)){
-	echo "Feito!";
-}else{
-	echo "Falhou";
+// Apenas dev e admin podem deletar
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], ['dev', 'admin'])) {
+    echo "Erro: Permissão negada.";
+    exit();
 }
 
+// Protege as entradas
+$sensor = DBEscape($_POST['sensor']);
+// Substitui o 'T' que vem do input datetime-local por um espaço
+$start = DBEscape(str_replace("T", " ", $_POST['start']));
+$end = DBEscape(str_replace("T", " ", $_POST['end']));
+
+// Query segura e mais eficiente
+// Usar a coluna `timestamp` diretamente permite que o banco use índices,
+// o que é muito mais rápido do que usar `date(timestamp)`.
+$sql  = "DELETE FROM h2o.leituras";
+$sql .= " WHERE sensor = '$sensor'";
+$sql .= " AND timestamp BETWEEN '$start' AND '$end'";
+
+if(DBExecute($sql)){
+    echo "Feito! Leituras antigas foram limpas.";
+} else {
+    echo "Falhou ao tentar limpar as leituras.";
+}
 ?>
