@@ -158,7 +158,7 @@ $sensores = DBQ("SELECT sensor, nome FROM reservatorio ORDER BY nome ASC");
 </head>
 <body>
 <div class="container">
-    <h3 class="center-align">Gerenciamento de Usuários (Perfil: <?= strtoupper(htmlspecialchars($_SESSION['user_role'])) ?>)</h3>
+    <h3 class="center-align">Gerenciamento do Sistema  (<?= strtoupper(htmlspecialchars($_SESSION['user_role'])) ?>)</h3>
 
     <?php if ($_SESSION['user_role'] === 'dev'): ?>
     <div class="row">
