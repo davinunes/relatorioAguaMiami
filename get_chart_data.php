@@ -71,22 +71,28 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
     // Define o timestamp para o ponto de referência. Usa a data final do filtro se existir, senão usa agora.
     $now_string = !empty($_GET['end']) ? $_GET['end'] : 'now';
     $now_timestamp_js = strtotime($now_string. ' UTC') * 1000;
+	$yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
 
     // A série de dados para o ponto de referência
     $nowSeries = [
-        'name' => 'now',
-        'data' => [
-            [$now_timestamp_js, -200] // Usando -200 como você mencionou. O original era -180. Ajuste conforme necessário.
-        ],
-        'marker' => [ // Opções para customizar o marcador
-             'enabled' => true,
-             'symbol' => 'circle',
-             'radius' => 1,
-             'fillColor' => '#FF0000' // Vermelho para destacar
-        ],
-        'lineWidth' => 0, // Sem linha, apenas o ponto
-        'enableMouseTracking' => false // Para não mostrar tooltip
-    ];
+		'name' => 'FundoDoReservatorio',
+		'data' => [
+			[$yesterday_timestamp_js, -240, '24h antes'], // Ponto de 24 horas atrás
+			[$now_timestamp_js, -240, 'Agora']        // Ponto atual
+		],
+		'marker' => [
+			'enabled' => true,
+			'symbol' => 'square',
+			'radius' => 1,
+			'fillColor' => '#000000'
+		],
+		'lineWidth' => 0, // Sem linha conectando os pontos
+		'enableMouseTracking' => true, // Permite tooltip
+		'tooltip' => [
+			'pointFormat' => '<span style="color:{point.color}"></span> {series.name}: <b>{point.y}</b><br/>',
+			'headerFormat' => '<span style="font-size: 10px">{point.key:%d/%m/%Y %H:%M}</span><br/>'
+		]
+	];
     // ===================================================================
     // FIM DA ADIÇÃO
     // ===================================================================
