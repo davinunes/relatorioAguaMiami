@@ -3,6 +3,8 @@
 session_start();
 session_unset();
 session_destroy();
-header('Location: login.php');
+
+// Redirecionar para uma página intermediária que limpa o localStorage
+header('Location: limpar_credenciais.php');
 exit();
 ?>

@@ -109,7 +109,7 @@ $caixas = DBQ($sql);
 <head>
     <title>Seus Gráficos</title>
     <meta http-equiv="refresh" content="180" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">  -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link rel="stylesheet" href="css.css">
 </head>
