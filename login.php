@@ -99,6 +99,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+			// Verifica se a mensagem de erro de login está presente na página
+			// A mensagem de erro tem a classe "red-text" no seu código
+			const errorMessageElement = document.querySelector('.red-text');
+			if (errorMessageElement) {
+				// Se a mensagem de erro existe, significa que o login automático falhou.
+				// Limpamos as credenciais salvas para evitar o loop.
+				console.log('Login automático falhou. Limpando credenciais salvas.');
+				localStorage.removeItem('h2o_login');
+				localStorage.removeItem('h2o_senha');
+
+				// Opcional, mas recomendado: desmarcar a caixa "Salvar"
+				document.getElementById('salvarCredenciais').checked = false;
+			}
+			
+			
             // Verificar se há credenciais salvas
             const savedLogin = localStorage.getItem('h2o_login');
             const savedSenha = localStorage.getItem('h2o_senha');
