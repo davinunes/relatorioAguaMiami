@@ -62,6 +62,13 @@ $resultado = DBQ($sql_leituras);
 if ($resultado && isset($resultado[0])) {
     $dados = $resultado[0];
     
+    // Gera a URL absoluta para a imagem do gráfico das últimas 24h
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
+    $domainName = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $base_url = $protocol . $domainName . dirname($_SERVER['PHP_SELF']);
+    $base_url = rtrim($base_url, '/\\');
+    $image_url = $base_url . "/get_chart_image.php?sensor=" . $sensor_id . "&hours=24";
+
     // Monta o array de resposta final
     $resposta = [
         'success' => true,
@@ -69,7 +76,8 @@ if ($resultado && isset($resultado[0])) {
         'nome_sensor' => $nome_sensor, // <-- NOME DO SENSOR INCLUÍDO AQUI
         'periodo_consultado' => "" . $uma_hora_atras_br,
         'total_itens_encontrados' => (int) $dados['total_itens_encontrados'],
-        'alerta' => (int) $dados['total_alerta']
+        'alerta' => (int) $dados['total_alerta'],
+        'chart_image_url' => $image_url
     ];
 
 } else {
