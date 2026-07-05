@@ -59,6 +59,12 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                        data-ativo="<?= $c['ativo'] ?>">
                        <i class="material-icons">edit</i>
                     </a>
+                    <a href="#modal-contatos-admin" class="btn-floating waves-effect waves-light green tooltipped contatos-admin modal-trigger"
+                       data-tooltip="Contatos de Notificação"
+                       data-sensor="<?= $c['sensor'] ?>"
+                       data-nome="<?= htmlspecialchars($c['nome']) ?>">
+                       <i class="material-icons">notifications</i>
+                    </a>
                     <a href="#modal-limpar" class="btn-floating waves-effect waves-light red tooltipped limpar modal-trigger"
                        data-tooltip="Limpar Leituras Antigas"
                        data-sensor="<?= $c['sensor'] ?>"
@@ -199,6 +205,48 @@ $dataInicioLimpeza = '2020-01-01T00:00';
     </div>
 </div>
 
+<!-- Modal para Gerenciar Contatos (Administrador) -->
+<div id="modal-contatos-admin" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4>Contatos do Sensor: <span id="contatos-admin-nome-sensor"></span></h4>
+        <p>Cadastre os números de WhatsApp (no formato 55DDD9XXXXYYYY) para receber alertas de nível baixo ou queda de conexão.</p>
+        
+        <input type="hidden" id="contatos-admin-sensor-id">
+        <div class="row">
+            <div class="input-field col s12 m8">
+                <input id="contatos-admin-numero" type="text" placeholder="Ex: 5561999999999">
+                <label for="contatos-admin-numero">Número WhatsApp</label>
+            </div>
+            <div class="input-field col s12 m4">
+                <button id="btn-admin-adicionar-contato" class="btn blue waves-effect waves-light" style="width: 100%;">Adicionar</button>
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+
+        <h5>Números Vinculados</h5>
+        <div id="admin-lista-contatos-carregando" class="progress" style="display: none;">
+            <div class="indeterminate"></div>
+        </div>
+        <table class="striped">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th class="right-align">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="admin-tabela-contatos-corpo">
+                <tr>
+                    <td colspan="2" class="center-align grey-text">Nenhum número cadastrado.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-grey btn-flat">Fechar</a>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script>
@@ -301,6 +349,126 @@ $(document).ready(function(){
                  $('#clear').removeClass('disabled'); // Reabilita se falhar
             }
         });
+    });
+
+    // Carrega contatos para o administrador
+    function carregarContatosAdmin(sensorId) {
+        if (!sensorId) return;
+        $("#admin-lista-contatos-carregando").show();
+        $("#admin-tabela-contatos-corpo").html('');
+        
+        $.ajax({
+            url: '../ajax_contatos.php',
+            type: 'GET',
+            data: {
+                action: 'list',
+                sensor_id: sensorId
+            },
+            dataType: 'json',
+            success: function(response) {
+                $("#admin-lista-contatos-carregando").hide();
+                if (response.success) {
+                    let html = '';
+                    if (response.contatos && response.contatos.length > 0) {
+                        response.contatos.forEach(function(c) {
+                            html += `<tr>
+                                <td>${c.numero}</td>
+                                <td class="right-align">
+                                    <button class="btn-flat red-text btn-admin-deletar-contato" data-id="${c.id}">
+                                        <i class="material-icons">delete</i>
+                                    </button>
+                                </td>
+                            </tr>`;
+                        });
+                    } else {
+                        html = '<tr><td colspan="2" class="center-align grey-text">Nenhum número cadastrado para este sensor.</td></tr>';
+                    }
+                    $("#admin-tabela-contatos-corpo").html(html);
+                } else {
+                    M.toast({html: response.message, classes: 'red'});
+                }
+            },
+            error: function() {
+                $("#admin-lista-contatos-carregando").hide();
+                M.toast({html: 'Erro ao carregar contatos.', classes: 'red'});
+            }
+        });
+    }
+
+    // Ação ao clicar no botão de contatos do sensor
+    $('.contatos-admin').click(function(){
+        const sensor = $(this).data("sensor");
+        const nome = $(this).data("nome");
+        
+        $('#contatos-admin-nome-sensor').text(nome);
+        $('#contatos-admin-sensor-id').val(sensor);
+        $('#contatos-admin-numero').val('');
+        M.updateTextFields();
+        
+        carregarContatosAdmin(sensor);
+    });
+
+    // Admin Adicionar contato
+    $('#btn-admin-adicionar-contato').click(function(){
+        const sensorId = $('#contatos-admin-sensor-id').val();
+        const numero = $('#contatos-admin-numero').val();
+
+        if (!numero || numero.trim() === '') {
+            M.toast({html: 'Por favor, insira o número de WhatsApp.', classes: 'orange'});
+            return;
+        }
+
+        $.ajax({
+            url: '../ajax_contatos.php',
+            type: 'POST',
+            data: {
+                action: 'add',
+                sensor_id: sensorId,
+                numero: numero
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    M.toast({html: response.message, classes: 'green'});
+                    $('#contatos-admin-numero').val('');
+                    carregarContatosAdmin(sensorId);
+                } else {
+                    M.toast({html: response.message, classes: 'red'});
+                }
+            },
+            error: function() {
+                M.toast({html: 'Erro ao adicionar contato.', classes: 'red'});
+            }
+        });
+    });
+
+    // Admin Deletar contato
+    $(document).on('click', '.btn-admin-deletar-contato', function() {
+        const id = $(this).data('id');
+        const sensorId = $('#contatos-admin-sensor-id').val();
+
+        if (confirm('Deseja realmente remover este número de notificação?')) {
+            $.ajax({
+                url: '../ajax_contatos.php',
+                type: 'POST',
+                data: {
+                    action: 'delete',
+                    id: id
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        M.toast({html: response.message, classes: 'green'});
+                        carregarContatosAdmin(sensorId);
+                    } else {
+                        M.toast({html: response.message, classes: 'red'});
+                    }
+                },
+                error: function() {
+                    M.toast({html: 'Erro ao remover contato.', classes: 'red'});
+                }
+            });
+        }
     });
 });
 </script>

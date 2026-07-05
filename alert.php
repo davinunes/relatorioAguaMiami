@@ -57,6 +57,16 @@ $sql_leituras = "
 ";
 $resultado = DBQ($sql_leituras);
 
+// Busca os contatos de notificação vinculados a este sensor
+$sql_contatos = "SELECT numero FROM h2o.contatos_notificacao WHERE sensor_id = $sensor_id";
+$contatos_res = DBQ($sql_contatos);
+$contatos = [];
+if (!empty($contatos_res)) {
+    foreach ($contatos_res as $c) {
+        $contatos[] = $c['numero'];
+    }
+}
+
 
 // 5. Processa o resultado e monta a resposta JSON
 if ($resultado && isset($resultado[0])) {
@@ -77,7 +87,8 @@ if ($resultado && isset($resultado[0])) {
         'periodo_consultado' => "" . $uma_hora_atras_br,
         'total_itens_encontrados' => (int) $dados['total_itens_encontrados'],
         'alerta' => (int) $dados['total_alerta'],
-        'chart_image_url' => $image_url
+        'chart_image_url' => $image_url,
+        'contatos' => $contatos // <-- RETORNA LISTA DE NÚMEROS DO SENSOR
     ];
 
 } else {

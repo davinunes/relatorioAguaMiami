@@ -111,6 +111,7 @@ $caixas = DBQ($sql);
     <!-- removido autorefresh -->
  <!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">  -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="css.css">
 </head>
 <body>
@@ -120,9 +121,12 @@ $caixas = DBQ($sql);
         <div id='timer' class="determinate" style="width: 0%"></div>
     </div>
 
-    <div class="row">
-        <div class="col s12">
+    <div class="row" style="margin-top: 20px;">
+        <div class="col s8">
             <h5>Bem-vindo, <?= htmlspecialchars($_SESSION['user_name']) ?>!</h5>
+        </div>
+        <div class="col s4 right-align">
+            <a href="#modal-contatos" class="btn green modal-trigger"><i class="material-icons left">notifications</i>Contatos</a>
         </div>
     </div>
     <div class="row">
@@ -171,6 +175,55 @@ $caixas = DBQ($sql);
             }
         }
         ?>
+    </div>
+
+    <!-- Modal para Gerenciar Contatos -->
+    <div id="modal-contatos" class="modal modal-fixed-footer">
+        <div class="modal-content">
+            <h4>Contatos de Notificação</h4>
+            <p>Cadastre os números de WhatsApp (no formato 55DDD9XXXXYYYY) para receber alertas automáticos de nível baixo ou falta de comunicação.</p>
+            
+            <div class="row">
+                <div class="input-field col s12 m6">
+                    <select id="contato-sensor-select" class="browser-default" style="display:block; width:100%;">
+                        <option value="" disabled selected>Selecione um Sensor</option>
+                        <?php if (!empty($caixas)) foreach ($caixas as $caixa): ?>
+                            <option value="<?= $caixa['sensor'] ?>"><?= htmlspecialchars($caixa['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="input-field col s12 m6">
+                    <input id="contato-numero" type="text" placeholder="Ex: 5561999999999">
+                    <label for="contato-numero">Número WhatsApp</label>
+                </div>
+            </div>
+            <div class="row right-align">
+                <button id="btn-adicionar-contato" class="btn blue waves-effect waves-light">Adicionar Número</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+
+            <h5>Números Vinculados</h5>
+            <div id="lista-contatos-carregando" class="progress" style="display: none;">
+                <div class="indeterminate"></div>
+            </div>
+            <table class="striped">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th class="right-align">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-contatos-corpo">
+                    <tr>
+                        <td colspan="2" class="center-align grey-text">Selecione um sensor acima para ver os contatos.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-grey btn-flat">Fechar</a>
+        </div>
     </div>
 </div>
 
@@ -339,7 +392,123 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Quando o usuário muda o sensor no dropdown, recarrega a lista de contatos
+    $("#contato-sensor-select").change(function() {
+        const sensorId = $(this).val();
+        carregarContatos(sensorId);
+    });
+
+    // Adicionar novo contato
+    $("#btn-adicionar-contato").click(function() {
+        const sensorId = $("#contato-sensor-select").val();
+        const numero = $("#contato-numero").val();
+
+        if (!sensorId) {
+            M.toast({html: 'Por favor, selecione um sensor.', classes: 'orange'});
+            return;
+        }
+        if (!numero || numero.trim() === '') {
+            M.toast({html: 'Por favor, insira o número de WhatsApp.', classes: 'orange'});
+            return;
+        }
+
+        $.ajax({
+            url: 'ajax_contatos.php',
+            type: 'POST',
+            data: {
+                action: 'add',
+                sensor_id: sensorId,
+                numero: numero
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    M.toast({html: response.message, classes: 'green'});
+                    $("#contato-numero").val('');
+                    carregarContatos(sensorId);
+                } else {
+                    M.toast({html: response.message, classes: 'red'});
+                }
+            },
+            error: function() {
+                M.toast({html: 'Erro ao adicionar contato.', classes: 'red'});
+            }
+        });
+    });
+
+    // Deletar contato
+    $(document).on('click', '.btn-deletar-contato', function() {
+        const id = $(this).data('id');
+        const sensorId = $("#contato-sensor-select").val();
+
+        if (confirm('Deseja realmente remover este número de notificação?')) {
+            $.ajax({
+                url: 'ajax_contatos.php',
+                type: 'POST',
+                data: {
+                    action: 'delete',
+                    id: id
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        M.toast({html: response.message, classes: 'green'});
+                        carregarContatos(sensorId);
+                    } else {
+                        M.toast({html: response.message, classes: 'red'});
+                    }
+                },
+                error: function() {
+                    M.toast({html: 'Erro ao remover contato.', classes: 'red'});
+                }
+            });
+        }
+    });
 });
+
+function carregarContatos(sensorId) {
+    if (!sensorId) return;
+    $("#lista-contatos-carregando").show();
+    $("#tabela-contatos-corpo").html('');
+    
+    $.ajax({
+        url: 'ajax_contatos.php',
+        type: 'GET',
+        data: {
+            action: 'list',
+            sensor_id: sensorId
+        },
+        dataType: 'json',
+        success: function(response) {
+            $("#lista-contatos-carregando").hide();
+            if (response.success) {
+                let html = '';
+                if (response.contatos && response.contatos.length > 0) {
+                    response.contatos.forEach(function(c) {
+                        html += `<tr>
+                            <td>${c.numero}</td>
+                            <td class="right-align">
+                                <button class="btn-flat red-text btn-deletar-contato" data-id="${c.id}">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+                } else {
+                    html = '<tr><td colspan="2" class="center-align grey-text">Nenhum número cadastrado para este sensor.</td></tr>';
+                }
+                $("#tabela-contatos-corpo").html(html);
+            } else {
+                M.toast({html: response.message, classes: 'red'});
+            }
+        },
+        error: function() {
+            $("#lista-contatos-carregando").hide();
+            M.toast({html: 'Erro ao carregar contatos.', classes: 'red'});
+        }
+    });
+}
 </script>
 
 </body>
