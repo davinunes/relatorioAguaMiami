@@ -238,7 +238,8 @@ function updateChartsData() {
                     }
                     
                     // Update the "Now" reference line (series[1])
-                    const now = new Date().getTime();
+                    const d = new Date();
+                    const now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
                     const yesterday = now - 24 * 60 * 60 * 1000;
                     chart.series[1].setData([
                         [yesterday, -240, '24h antes'],
@@ -248,7 +249,8 @@ function updateChartsData() {
                     chart.redraw();
                 } else {
                     // Update the "Now" line to keep it moving forward
-                    const now = new Date().getTime();
+                    const d = new Date();
+                    const now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
                     const yesterday = now - 24 * 60 * 60 * 1000;
                     chart.series[1].setData([
                         [yesterday, -240, '24h antes'],
@@ -307,24 +309,25 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
+                    // Find the last valid timestamp in the initial series data BEFORE Highcharts mutates the options object
+                    const seriesData = response.chartOptions.series[0].data;
+                    let maxTimestampJs = 0;
+                    if (seriesData) {
+                        for (let i = seriesData.length - 1; i >= 0; i--) {
+                            const pt = seriesData[i];
+                            if (pt && pt[0] !== null && pt[0] !== undefined) {
+                                maxTimestampJs = Math.max(maxTimestampJs, pt[0]);
+                            }
+                        }
+                    }
+
                     // Se sucesso, renderiza o gráfico com os dados recebidos
                     const chart = Highcharts.chart(containerId, response.chartOptions);
                     
                     chartInstances[sensorId] = {
                         chart: chart,
-                        lastTimestampJs: 0
+                        lastTimestampJs: maxTimestampJs
                     };
-                    
-                    // Find the last valid timestamp in the initial series data
-                    const seriesData = response.chartOptions.series[0].data;
-                    let maxTimestampJs = 0;
-                    for (let i = seriesData.length - 1; i >= 0; i--) {
-                        const pt = seriesData[i];
-                        if (pt && pt[0] !== null) {
-                            maxTimestampJs = Math.max(maxTimestampJs, pt[0]);
-                        }
-                    }
-                    chartInstances[sensorId].lastTimestampJs = maxTimestampJs;
                 } else {
                     // Se falhar (ex: sem dados), mostra a mensagem de erro
                     container.html("<div class='card-panel red lighten-4'><p class='center-align'>" + response.message + "</p></div>");

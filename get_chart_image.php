@@ -150,7 +150,9 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    'Content-Length: ' . strlen($post_data)
+    'Content-Length: ' . strlen($post_data),
+    'Referer: https://app.digitalinovation.com.br/',
+    'Origin: https://app.digitalinovation.com.br'
 ]);
 curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Evita falhas locais de certificado SSL
@@ -168,9 +170,102 @@ if ($http_code === 200 && !empty($result)) {
     echo $result;
     exit();
 } else {
-    http_response_code(502);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo "Erro ao gerar imagem do gráfico. HTTP Code: $http_code. Curl Error: " . ($error_msg ?? 'Nenhum');
-    exit();
+    // FALLBACK PARA QUICKCHART.IO (Gera um gráfico Chart.js idêntico)
+    $chartDataPoints = [];
+    foreach ($historico as $h) {
+        $h['Valor'] += $ajuste;
+        if ($h['Valor'] > 220 || $h['Valor'] < 2) continue;
+
+        $chartDataPoints[] = [
+            'x' => $h['timestamp'],
+            'y' => (double)$h['Valor'] * -1
+        ];
+    }
+
+    $chartConfig = [
+        'type' => 'line',
+        'data' => [
+            'datasets' => [
+                [
+                    'label' => $nome,
+                    'data' => $chartDataPoints,
+                    'borderColor' => 'rgb(67, 67, 72)',
+                    'borderWidth' => 2,
+                    'fill' => false,
+                    'pointRadius' => 0
+                ]
+            ]
+        ],
+        'options' => [
+            'title' => [
+                'display' => true,
+                'text' => $nome . ' - Últimas ' . $hours . 'h (Última att: ' . $ult_att . ')'
+            ],
+            'scales' => [
+                'xAxes' => [[
+                    'type' => 'time',
+                    'time' => [
+                        'parser' => 'YYYY-MM-DD HH:mm:ss',
+                        'displayFormats' => [
+                            'hour' => 'HH:mm'
+                        ]
+                    ],
+                    'scaleLabel' => [
+                        'display' => true,
+                        'labelString' => 'Hora'
+                    ]
+                ]],
+                'yAxes' => [[
+                    'ticks' => [
+                        'min' => -240,
+                        'max' => 0
+                    ],
+                    'scaleLabel' => [
+                        'display' => true,
+                        'labelString' => 'Centímetros'
+                    ]
+                ]]
+            ]
+        ]
+    ];
+
+    $post_data_qc = json_encode([
+        'chart' => $chartConfig,
+        'width' => 800,
+        'height' => 450,
+        'backgroundColor' => 'white'
+    ]);
+
+    $ch2 = curl_init('https://quickchart.io/chart');
+    curl_setopt($ch2, CURLOPT_CUSTOMREQUEST, "POST");
+    curl_setopt($ch2, CURLOPT_POSTFIELDS, $post_data_qc);
+    curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch2, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($post_data_qc)
+    ]);
+    curl_setopt($ch2, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
+
+    $qc_result = curl_exec($ch2);
+    $qc_code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+    
+    if (curl_errno($ch2)) {
+        $qc_error_msg = curl_error($ch2);
+    }
+    curl_close($ch2);
+
+    if ($qc_code === 200 && !empty($qc_result)) {
+        header('Content-Type: image/png');
+        echo $qc_result;
+        exit();
+    } else {
+        http_response_code(502);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Erro ao gerar imagem do gráfico.\n";
+        echo "Highcharts (403): IP Bloqueado ou Erro de Faturamento.\n";
+        echo "QuickChart ($qc_code): " . ($qc_error_msg ?? 'Erro na chamada de fallback');
+        exit();
+    }
 }
 ?>
