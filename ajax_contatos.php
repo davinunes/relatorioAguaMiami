@@ -59,6 +59,17 @@ if ($action === 'add') {
         $numero = $numero_digits . '@s.whatsapp.net';
     }
 
+    // Remove o nono dígito para números brasileiros se tiver 13 dígitos numéricos
+    // (55 + 2 dígitos DDD + 9 + 8 dígitos)
+    $parts = explode('@', $numero);
+    $num_part = $parts[0];
+    if (substr($num_part, 0, 2) === '55' && strlen($num_part) === 13) {
+        if ($num_part[4] === '9') {
+            $num_part = substr($num_part, 0, 4) . substr($num_part, 5);
+            $numero = $num_part . '@' . ($parts[1] ?? 's.whatsapp.net');
+        }
+    }
+
     // Verifica permissão
     if (!$is_admin) {
         $access = DBQ("SELECT 1 FROM h2o.usuario_sensores WHERE usuario_id = '".DBEscape($user_id)."' AND sensor_id = '$sensor_id'");
