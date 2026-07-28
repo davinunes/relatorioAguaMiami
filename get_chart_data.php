@@ -19,7 +19,7 @@ include "database.php"; // Sua conexão com o banco
  * Função principal que busca e formata os dados para UM gráfico.
  * Agora ela retorna um array em vez de imprimir HTML/JS.
  */
-function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug = false) {
+function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug = false, $shadow = false) {
     global $cor; // Cores que você definiu
 
     // ... (o início da sua função historico original) ...
@@ -111,6 +111,37 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug =
     // FIM DA ADIÇÃO
     // ===================================================================
 
+    $seriesList = [
+        [
+            'name' => $nome,
+            'data' => $seriesData,
+            'color' => "rgb(067, 067, 072)"
+        ],
+        $nowSeries
+    ];
+
+    if ($shadow) {
+        $shadowData = [];
+        foreach ($ruidos as $r) {
+            $shadowData[] = [$r['timestamp_js'], $r['valor_plot']];
+        }
+        $seriesList[] = [
+            'name' => 'Ruídos (Sombra)',
+            'data' => $shadowData,
+            'color' => 'rgba(255, 99, 71, 0.6)',
+            'dashStyle' => 'ShortDot',
+            'lineWidth' => 1,
+            'marker' => [
+                'enabled' => true,
+                'radius' => 3,
+                'symbol' => 'circle'
+            ],
+            'tooltip' => [
+                'pointFormat' => '<span style="color:{point.color}">●</span> {series.name}: <b>{point.y}</b><br/>'
+            ]
+        ];
+    }
+
     // Monta o array de opções do Highcharts
     $chartOptions = [
         'chart' => [
@@ -138,14 +169,7 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug =
         'credits' => ['enabled' => false],
         'tooltip' => ['shared' => true],
         'exporting' => ['enabled' => true],
-        'series' => [ // <--- O array de séries agora contém DOIS elementos
-            [
-                'name' => $nome,
-                'data' => $seriesData,
-                'color' => "rgb(067, 067, 072)"
-            ],
-            $nowSeries // Adicionando a segunda série aqui
-		]
+        'series' => $seriesList
     ];
 
     return ['success' => true, 'chartOptions' => $chartOptions, 'ruidos' => $ruidos];
@@ -160,6 +184,7 @@ if (!$sensor_id) {
 }
 
 $debug = (filter_input(INPUT_GET, 'debug') === 'true');
+$shadow = (filter_input(INPUT_GET, 'shadow') === 'true');
 
 // Lógica de datas (similar à original)
 if (!empty($_GET['start'])) {
@@ -185,6 +210,6 @@ if (empty($caixa)) {
 $caixa = $caixa[0];
 
 // Chama a função para obter os dados e imprime o resultado em JSON
-$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda'], $debug);
+$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda'], $debug, $shadow);
 echo json_encode($result);
 ?>

@@ -134,6 +134,9 @@ $caixas = DBQ($sql);
             <?php if (isset($_GET['debug']) && $_GET['debug'] === 'true') { ?>
                 <input type="hidden" name="debug" value="true">
             <?php } ?>
+            <?php if (isset($_GET['shadow']) && $_GET['shadow'] === 'true') { ?>
+                <input type="hidden" name="shadow" value="true">
+            <?php } ?>
             <div class="input-field col l4 s4">
                 <input id="start" name="start" type="date" class="validate" value="<?= htmlspecialchars($_GET['start']) ?>">
                 <label for="start">De</label>
@@ -251,6 +254,7 @@ var timer = null;
 function updateChartsData() {
     const urlParams = new URLSearchParams(window.location.search);
     const isDebug = urlParams.get('debug') === 'true';
+    const isShadow = urlParams.get('shadow') === 'true';
 
     for (const sensorId in chartInstances) {
         if (!chartInstances.hasOwnProperty(sensorId)) continue;
@@ -276,6 +280,15 @@ function updateChartsData() {
                 if (response.ruidos && response.ruidos.length > 0) {
                     if (!instance.ruidos) instance.ruidos = [];
                     instance.ruidos = instance.ruidos.concat(response.ruidos);
+
+                    if (isShadow) {
+                        const shadowSeries = chart.series.find(s => s.name === 'Ruídos (Sombra)');
+                        if (shadowSeries) {
+                            response.ruidos.forEach(function(r) {
+                                shadowSeries.addPoint([r.timestamp_js, r.valor_plot], false);
+                            });
+                        }
+                    }
                 }
 
                 if (response.success && response.newPoints && response.newPoints.length > 0) {
@@ -340,6 +353,7 @@ $(document).ready(function() {
     const startDate = urlParams.get('start') || '';
     const endDate = urlParams.get('end') || '';
     const isDebug = urlParams.get('debug') === 'true';
+    const isShadow = urlParams.get('shadow') === 'true';
     const isHistoricalView = (endDate !== '');
 
     // Configure the progress bar timer if it's not a historical view
@@ -371,7 +385,8 @@ $(document).ready(function() {
                 sensor: sensorId,
                 start: startDate,
                 end: endDate,
-                debug: isDebug ? 'true' : 'false'
+                debug: isDebug ? 'true' : 'false',
+                shadow: isShadow ? 'true' : 'false'
             },
             dataType: 'json',
             success: function(response) {

@@ -47,6 +47,7 @@ $nome = $caixa['nome'];
 $ajuste = (double)$caixa['alturaSonda'];
 
 $debug = (filter_input(INPUT_GET, 'debug') === 'true');
+$shadow = (filter_input(INPUT_GET, 'shadow') === 'true');
 
 // Busca as leituras correspondentes
 $sql = "SELECT * FROM h2o.leituras l WHERE l.sensor = ".$sensor_id." AND l.`timestamp` BETWEEN $start AND $end ORDER BY l.`id` ASC";
@@ -118,6 +119,34 @@ $nowSeries = [
     'enableMouseTracking' => false
 ];
 
+$seriesList = [
+    [
+        'name' => $nome,
+        'data' => $seriesData,
+        'color' => "rgb(067, 067, 072)"
+    ],
+    $nowSeries
+];
+
+if ($shadow) {
+    $shadowData = [];
+    foreach ($ruidos as $r) {
+        $shadowData[] = [$r['timestamp_js'], $r['valor_plot']];
+    }
+    $seriesList[] = [
+        'name' => 'Ruídos (Sombra)',
+        'data' => $shadowData,
+        'color' => 'rgba(255, 99, 71, 0.6)',
+        'dashStyle' => 'ShortDot',
+        'lineWidth' => 1,
+        'marker' => [
+            'enabled' => true,
+            'radius' => 3,
+            'symbol' => 'circle'
+        ]
+    ];
+}
+
 // Monta o array de opções do Highcharts
 $chartOptions = [
     'chart' => [
@@ -142,14 +171,7 @@ $chartOptions = [
     'time' => [
         'timezoneOffset' => 180 // GMT-3 (Recife/Sao Paulo)
     ],
-    'series' => [
-        [
-            'name' => $nome,
-            'data' => $seriesData,
-            'color' => "rgb(067, 067, 072)"
-        ],
-        $nowSeries
-    ]
+    'series' => $seriesList
 ];
 
 // Payload para o servidor de exportação Highcharts
