@@ -10,11 +10,10 @@ Esta skill descreve o subsistema de checagem de alertas, diagnóstico de anomali
 ## Monitoramento, Diagnóstico e Tendência ([alert.php](file:///e:/DEV/relatorioAguaMiami/alert.php))
 
 - **Regra Fundamental de Filtragem**: As leituras de ruído (`Valor + alturaSonda > 220` ou `< 2`) são purgadas **antes** de qualquer avaliação. Ruídos **NUNCA** são considerados para o cálculo da **Tendência** nem para o **Alerta de Nível Alto**.
-- Consulta as leituras recentes do `sensor` em uma janela de diagnóstico (padrão de 3h, ajustável via `hours`).
-- Calcula a **Tendência Dinâmica** considerando estritamente leituras válidas no final da curva (`cauda`):
-  - **`ENCHENDO`**: Subida contínua do nível ($\Delta V > +0.5\text{ cm}$).
-  - **`ESVAZIANDO`**: Queda contínua do nível ($\Delta V < -0.5\text{ cm}$).
-  - **`ESTAVEL`**: Nível estável ($|\Delta V| \le 0.5\text{ cm}$).
+- **Cálculo de Tendência Dinâmica**: Utiliza `valor_plot = valor * -1` (coordenadas do gráfico Highcharts):
+  - **`ENCHENDO`**: Subida contínua da linha no gráfico ($\Delta \text{plot} > +0.5\text{ cm}$).
+  - **`ESVAZIANDO`**: Queda contínua da linha no gráfico ($\Delta \text{plot} < -0.5\text{ cm}$).
+  - **`ESTAVEL`**: Linha plana no final ($|\Delta \text{plot}| \le 0.5\text{ cm}$).
   - **`DESCONHECIDO`**: Leituras recentes insuficientes.
 - Retorna o objeto `diagnostico` com `status` (`OK`, `ATENCAO`, `CRITICO`) e flags de diagnóstico:
   - **`alerta_parada_cardiaca`**: Detecta sonda travada/oxidada (sinal plano sem flutuação de zigue-zague).

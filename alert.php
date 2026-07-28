@@ -107,25 +107,26 @@ if ($total_validos > 1) {
     $stddev = sqrt($soma_quad / $total_validos);
 }
 
-// Algoritmo de Tendência na Cauda da Curva
+// Algoritmo de Tendência na Cauda da Curva (alinhado com o gráfico Highcharts)
 $tendencia = "DESCONHECIDO";
 $descricao_tendencia = "Leituras recentes insuficientes para determinar a tendência.";
 
 if ($total_validos >= 3) {
-    $nivel_atual = $leituras_validas[$total_validos - 1]['valor'];
+    // O gráfico usa valor_plot = valor * -1 (quanto mais próximo de 0, mais cheio o reservatório)
+    $plot_atual = $leituras_validas[$total_validos - 1]['valor'] * -1;
     $idx_anterior = max(0, $total_validos - 5);
-    $nivel_anterior = $leituras_validas[$idx_anterior]['valor'];
-    $delta_v = $nivel_atual - $nivel_anterior;
+    $plot_anterior = $leituras_validas[$idx_anterior]['valor'] * -1;
+    $delta_plot = $plot_atual - $plot_anterior;
 
-    if ($delta_v > 0.5) {
+    if ($delta_plot > 0.5) {
         $tendencia = "ENCHENDO";
-        $descricao_tendencia = "Nível em elevação (+" . number_format($delta_v, 1) . " cm nas últimas leituras).";
-    } elseif ($delta_v < -0.5) {
+        $descricao_tendencia = "Nível em elevação (+" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
+    } elseif ($delta_plot < -0.5) {
         $tendencia = "ESVAZIANDO";
-        $descricao_tendencia = "Nível em queda (" . number_format($delta_v, 1) . " cm nas últimas leituras).";
+        $descricao_tendencia = "Nível em queda (" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
     } else {
         $tendencia = "ESTAVEL";
-        $descricao_tendencia = "Nível estável (variação de " . sprintf("%+.1f", $delta_v) . " cm nas últimas leituras).";
+        $descricao_tendencia = "Nível estável (variação de " . sprintf("%+.1f", $delta_plot) . " cm nas últimas leituras).";
     }
 }
 
