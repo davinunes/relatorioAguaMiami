@@ -2,18 +2,16 @@
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-if (!isset($_SESSION['user_id'])) {
-    // http_response_code(401); 
-    // echo json_encode(['success' => false, 'message' => 'Acesso não autorizado.']);
-    // exit();
-}
-
 include "database.php";
 
 // --- PONTO DE ENTRADA DO SCRIPT ---
 
 // 1. Valida o ID do sensor recebido via GET
 $sensor_id = filter_input(INPUT_GET, 'sensor', FILTER_VALIDATE_INT);
+$hours = filter_input(INPUT_GET, 'hours', FILTER_VALIDATE_INT);
+if (!$hours || $hours <= 0) {
+    $hours = 3; // Janela padrão de 3 horas para diagnóstico de parada cardíaca e ruídos
+}
 
 if (!$sensor_id) {
     http_response_code(400);
@@ -21,43 +19,33 @@ if (!$sensor_id) {
     exit();
 }
 
-// ===================================================================
-// 2. BUSCA O NOME DO SENSOR - NOVA SEÇÃO
-// ===================================================================
-// Consulta a tabela de reservatórios para obter o nome do sensor
-$sql_sensor = "SELECT nome FROM h2o.reservatorio WHERE sensor = $sensor_id AND ativo = true LIMIT 1";
+// 2. Busca os detalhes do reservatório
+$sql_sensor = "SELECT nome, alturaSonda, fosso FROM h2o.reservatorio WHERE sensor = $sensor_id AND ativo = true LIMIT 1";
 $info_sensor = DBQ($sql_sensor);
 
-// Se não encontrarmos o sensor ou ele estiver inativo, retorna um erro.
 if (empty($info_sensor)) {
-    http_response_code(404); // Not Found (Não encontrado)
+    http_response_code(404);
     echo json_encode(['success' => false, 'message' => "Sensor com ID $sensor_id não encontrado ou está inativo."]);
     exit();
 }
-// Armazena o nome do sensor para usar na resposta final
+
 $nome_sensor = $info_sensor[0]['nome'];
-// ===================================================================
+$ajuste = (double)$info_sensor[0]['alturaSonda'];
 
+// 3. Define os períodos de consulta
+$now_ts = time();
+$inicio_ts = strtotime("-$hours hours");
+$inicio_sql = date("Y-m-d H:i:s", $inicio_ts);
+$inicio_br = date("d/m/Y H:i:s", $inicio_ts);
 
-// 3. Define o período de tempo (última hora)
-$timestamp_uma_hora_atras = strtotime('-1 hour');
-$uma_hora_atras_sql = date("Y-m-d H:i:s", $timestamp_uma_hora_atras);
-$uma_hora_atras_br = date("d/m/Y H:i:s", $timestamp_uma_hora_atras);
+$uma_hora_atras_ts = strtotime('-1 hour');
+$uma_hora_atras_sql = date("Y-m-d H:i:s", $uma_hora_atras_ts);
 
+// 4. Consulta leituras na janela de diagnóstico
+$sql_leituras = "SELECT * FROM h2o.leituras WHERE sensor = $sensor_id AND `timestamp` >= '$inicio_sql' ORDER BY `timestamp` ASC";
+$leituras = DBQ($sql_leituras);
 
-// 4. Monta e executa a consulta SQL das leituras
-$sql_leituras = "
-    SELECT
-        COUNT(*) AS total_itens_encontrados,
-        SUM(CASE WHEN Valor > 75 THEN 1 ELSE 0 END) AS total_alerta
-    FROM
-        h2o.leituras
-    WHERE
-        sensor = $sensor_id AND `timestamp` >= '$uma_hora_atras_sql'
-";
-$resultado = DBQ($sql_leituras);
-
-// Busca os contatos de notificação vinculados a este sensor
+// 5. Busca os contatos de notificação vinculados a este sensor
 $sql_contatos = "SELECT numero FROM h2o.contatos_notificacao WHERE sensor_id = $sensor_id";
 $contatos_res = DBQ($sql_contatos);
 $contatos = [];
@@ -67,41 +55,115 @@ if (!empty($contatos_res)) {
     }
 }
 
+// 6. Algoritmo de Diagnóstico de Anomalias de Sonda
+$total_itens = count($leituras);
+$total_alerta_1h = 0;
+$ruidos_count = 0;
+$valores_validos = [];
+$ultimo_timestamp_ts = null;
 
-// 5. Processa o resultado e monta a resposta JSON
-if ($resultado && isset($resultado[0])) {
-    $dados = $resultado[0];
+if (!empty($leituras)) {
+    foreach ($leituras as $l) {
+        $ts = strtotime($l['timestamp']);
+        if ($ultimo_timestamp_ts === null || $ts > $ultimo_timestamp_ts) {
+            $ultimo_timestamp_ts = $ts;
+        }
 
-    // Gera a URL absoluta para a imagem do gráfico das últimas 24h
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
-    $domainName = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $base_url = $protocol . $domainName . dirname($_SERVER['PHP_SELF']);
-    $base_url = rtrim($base_url, '/\\');
-    $image_url = $base_url . "/get_chart_image.php?sensor=" . $sensor_id . "&hours=24";
+        $val = (double)$l['Valor'] + $ajuste;
 
-    // Monta o array de resposta final
-    $resposta = [
-        'success' => true,
-        'sensor_id' => $sensor_id,
-        'nome_sensor' => $nome_sensor, // <-- NOME DO SENSOR INCLUÍDO AQUI
-        'periodo_consultado' => "" . $uma_hora_atras_br,
-        'total_itens_encontrados' => (int) $dados['total_itens_encontrados'],
-        'alerta' => (int) $dados['total_alerta'],
-        'chart_image_url' => $image_url,
-        'contatos' => $contatos // <-- RETORNA LISTA DE NÚMEROS DO SENSOR
-    ];
+        // Contagem de alerta tradicional de nível alto na última hora
+        if ($ts >= $uma_hora_atras_ts && $val > 75) {
+            $total_alerta_1h++;
+        }
 
-} else {
-    http_response_code(500);
-    $resposta = [
-        'success' => false,
-        'message' => 'Erro ao consultar o banco de dados para as leituras.',
-        'total_itens_encontrados' => 0,
-        'alerta' => 0
-    ];
+        // Filtro de ruído
+        if ($val > 220 || $val < 2) {
+            $ruidos_count++;
+        } else {
+            $valores_validos[] = $val;
+        }
+    }
 }
 
-// 6. Retorna o JSON final
-echo json_encode($resposta);
+$tempo_sem_comunicacao_min = $ultimo_timestamp_ts ? round(($now_ts - $ultimo_timestamp_ts) / 60) : 9999;
+$total_validos = count($valores_validos);
 
+$variacao_nivel = 0.0;
+$stddev = 0.0;
+
+if ($total_validos > 1) {
+    $min_val = min($valores_validos);
+    $max_val = max($valores_validos);
+    $variacao_nivel = $max_val - $min_val;
+
+    $media = array_sum($valores_validos) / $total_validos;
+    $soma_quad = 0.0;
+    foreach ($valores_validos as $v) {
+        $soma_quad += pow($v - $media, 2);
+    }
+    $stddev = sqrt($soma_quad / $total_validos);
+}
+
+$pct_ruido = $total_itens > 0 ? ($ruidos_count / $total_itens) * 100 : 0;
+
+// Regras de Alerta e Sintomas
+$alerta_sem_comunicacao = ($tempo_sem_comunicacao_min > 60 || $total_itens == 0);
+$alerta_parada_cardiaca = ($total_validos >= 8 && !$alerta_sem_comunicacao && $variacao_nivel < 0.2);
+$alerta_ruido_excessivo = ($pct_ruido > 15.0);
+$alerta_nivel = ($total_alerta_1h > 0);
+
+$detalhes = [];
+if ($alerta_sem_comunicacao) {
+    $detalhes[] = "Falta de comunicação: Nenhuma leitura recebida há {$tempo_sem_comunicacao_min} minutos.";
+}
+if ($alerta_parada_cardiaca) {
+    $detalhes[] = "Sinal travado (Parada Cardíaca): O sensor enviou {$total_validos} leituras nas últimas {$hours}h sem variação de nível (variação de apenas " . number_format($variacao_nivel, 2) . " cm). Possível oxidação nos contatos da sonda.";
+}
+if ($alerta_ruido_excessivo) {
+    $detalhes[] = "Excesso de ruídos: {$ruidos_count} das {$total_itens} leituras (" . number_format($pct_ruido, 1) . "%) apresentaram valores com ruído. Possível mau contato/oxidação na sonda.";
+}
+if ($alerta_nivel) {
+    $detalhes[] = "Nível crítico: {$total_alerta_1h} leituras na última hora ultrapassaram o limite de 75cm.";
+}
+
+// Definição do Status de Saúde do Sensor
+$status = "OK";
+if ($alerta_nivel || $alerta_sem_comunicacao) {
+    $status = "CRITICO";
+} elseif ($alerta_parada_cardiaca || $alerta_ruido_excessivo) {
+    $status = "ATENCAO";
+}
+
+// Gera a URL da imagem do gráfico das últimas 24h
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
+$domainName = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$base_url = $protocol . $domainName . dirname($_SERVER['PHP_SELF']);
+$base_url = rtrim($base_url, '/\\');
+$image_url = $base_url . "/get_chart_image.php?sensor=" . $sensor_id . "&hours=24";
+
+// Monta a resposta final mantendo retrocompatibilidade
+$resposta = [
+    'success' => true,
+    'sensor_id' => $sensor_id,
+    'nome_sensor' => $nome_sensor,
+    'periodo_consultado' => $inicio_br,
+    'total_itens_encontrados' => $total_itens,
+    'alerta' => $total_alerta_1h,
+    'chart_image_url' => $image_url,
+    'contatos' => $contatos,
+    'diagnostico' => [
+        'status' => $status,
+        'alerta_nivel' => $alerta_nivel,
+        'alerta_parada_cardiaca' => $alerta_parada_cardiaca,
+        'alerta_ruido_excessivo' => $alerta_ruido_excessivo,
+        'alerta_sem_comunicacao' => $alerta_sem_comunicacao,
+        'variacao_nivel_cm' => round($variacao_nivel, 2),
+        'desvio_padrao' => round($stddev, 3),
+        'porcentagem_ruido' => round($pct_ruido, 1),
+        'tempo_sem_comunicacao_min' => $tempo_sem_comunicacao_min,
+        'detalhes' => $detalhes
+    ]
+];
+
+echo json_encode($resposta);
 ?>
