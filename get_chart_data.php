@@ -74,8 +74,8 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug =
         $seriesData[] = [$timestamp_js, $valor_plot];
     }
 
-    // Pega a última leitura para o subtítulo
-    $sql_ultimo = "select `timestamp` from h2o.leituras WHERE sensor = ".$sensor_id." ORDER by id desc limit 1";
+    // Pega a última leitura para o subtítulo usando o índice idx_sensor_timestamp
+    $sql_ultimo = "SELECT `timestamp` FROM h2o.leituras WHERE sensor = ".$sensor_id." ORDER BY `timestamp` DESC LIMIT 1";
     $ultimo = DBQ($sql_ultimo);
     $ult_att = $ultimo ? date("d/m/Y H:i:s", strtotime($ultimo[0]['timestamp'])) : 'N/A';
 	

@@ -2,7 +2,7 @@
 //require_once 'config.php';
 require_once '../database.php';
 
-// SQL para pegar apenas o registro mais recente de cada UUID
+// SQL para pegar apenas o registro mais recente de cada UUID aproveitando o índice composto idx_uuid_created (uuid, created_at DESC)
 $sql = "SELECT t1.* FROM esp32_pings t1
         INNER JOIN (
             SELECT uuid, MAX(created_at) as max_date

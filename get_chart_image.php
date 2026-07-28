@@ -93,8 +93,8 @@ foreach ($historico as $h) {
     $seriesData[] = [$timestamp_js, $valor_plot];
 }
 
-// Busca a última atualização global do sensor
-$sql_ultimo = "SELECT `timestamp` FROM h2o.leituras WHERE sensor = ".$sensor_id." ORDER BY id DESC LIMIT 1";
+// Busca a última atualização global do sensor usando o índice idx_sensor_timestamp
+$sql_ultimo = "SELECT `timestamp` FROM h2o.leituras WHERE sensor = ".$sensor_id." ORDER BY `timestamp` DESC LIMIT 1";
 $ultimo = DBQ($sql_ultimo);
 $ult_att = $ultimo ? date("d/m/Y H:i:s", strtotime($ultimo[0]['timestamp'])) : 'N/A';
 
