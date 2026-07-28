@@ -81,6 +81,7 @@ if (!empty($leituras)) {
             $ruidos_count++;
         } else {
             $valores_validos[] = $val;
+            $leituras_validas[] = ['ts' => $ts, 'valor' => $val];
         }
     }
 }
@@ -102,6 +103,28 @@ if ($total_validos > 1) {
         $soma_quad += pow($v - $media, 2);
     }
     $stddev = sqrt($soma_quad / $total_validos);
+}
+
+// Algoritmo de Tendência na Cauda da Curva
+$tendencia = "DESCONHECIDO";
+$descricao_tendencia = "Leituras recentes insuficientes para determinar a tendência.";
+
+if ($total_validos >= 3) {
+    $nivel_atual = $leituras_validas[$total_validos - 1]['valor'];
+    $idx_anterior = max(0, $total_validos - 5);
+    $nivel_anterior = $leituras_validas[$idx_anterior]['valor'];
+    $delta_v = $nivel_atual - $nivel_anterior;
+
+    if ($delta_v > 0.5) {
+        $tendencia = "ENCHENDO";
+        $descricao_tendencia = "Nível em elevação (+" . number_format($delta_v, 1) . " cm nas últimas leituras).";
+    } elseif ($delta_v < -0.5) {
+        $tendencia = "ESVAZIANDO";
+        $descricao_tendencia = "Nível em queda (" . number_format($delta_v, 1) . " cm nas últimas leituras).";
+    } else {
+        $tendencia = "ESTAVEL";
+        $descricao_tendencia = "Nível estável (variação de " . sprintf("%+.1f", $delta_v) . " cm nas últimas leituras).";
+    }
 }
 
 $pct_ruido = $total_itens > 0 ? ($ruidos_count / $total_itens) * 100 : 0;
@@ -153,6 +176,8 @@ $resposta = [
     'contatos' => $contatos,
     'diagnostico' => [
         'status' => $status,
+        'tendencia' => $tendencia,
+        'descricao_tendencia' => $descricao_tendencia,
         'alerta_nivel' => $alerta_nivel,
         'alerta_parada_cardiaca' => $alerta_parada_cardiaca,
         'alerta_ruido_excessivo' => $alerta_ruido_excessivo,
