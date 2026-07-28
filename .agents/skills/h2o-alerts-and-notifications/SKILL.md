@@ -10,6 +10,7 @@ Esta skill descreve o subsistema de checagem de alertas, diagnóstico de anomali
 ## Monitoramento, Diagnóstico e Tendência ([alert.php](file:///e:/DEV/relatorioAguaMiami/alert.php))
 
 - **Regra Fundamental de Filtragem**: As leituras de ruído (`Valor + alturaSonda > 220` ou `< 2`) são purgadas **antes** de qualquer avaliação. Ruídos **NUNCA** são considerados para o cálculo da **Tendência** nem para o **Alerta de Nível Alto**.
+- **Regra de Parada Cardíaca**: Em um reservatório ativo (janela de 3h com $\ge 8$ leituras), se a variação total for $< 5.0\text{ cm}$ ou o desvio padrão $STDDEV < 1.5$ (ou cauda totalmente plana com $STDDEV < 2.0$), dispara `alerta_parada_cardiaca = true` indicando sonda travada/oxidada.
 - **Cálculo de Tendência Dinâmica**: Utiliza `valor_plot = valor * -1` (coordenadas do gráfico Highcharts):
   - **`ENCHENDO`**: Subida contínua da linha no gráfico ($\Delta \text{plot} > +0.5\text{ cm}$).
   - **`ESVAZIANDO`**: Queda contínua da linha no gráfico ($\Delta \text{plot} < -0.5\text{ cm}$).

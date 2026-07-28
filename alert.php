@@ -133,8 +133,9 @@ if ($total_validos >= 3) {
 $pct_ruido = $total_itens > 0 ? ($ruidos_count / $total_itens) * 100 : 0;
 
 // Regras de Alerta e Sintomas
+// Em um reservatório ativo de água (janela de 3h), variações de nível inferiores a 5.0 cm ou desvio padrão < 1.5 indicam parada cardíaca (sinal travado/oxidação sem o zigue-zague natural).
 $alerta_sem_comunicacao = ($tempo_sem_comunicacao_min > 60 || $total_itens == 0);
-$alerta_parada_cardiaca = ($total_validos >= 8 && !$alerta_sem_comunicacao && $variacao_nivel < 0.2);
+$alerta_parada_cardiaca = ($total_validos >= 8 && !$alerta_sem_comunicacao && ($variacao_nivel < 5.0 || $stddev < 1.5 || (abs($delta_plot) <= 0.2 && $stddev < 2.0)));
 $alerta_ruido_excessivo = ($pct_ruido > 15.0);
 $alerta_nivel = ($total_alerta_1h > 0);
 
@@ -143,7 +144,7 @@ if ($alerta_sem_comunicacao) {
     $detalhes[] = "Falta de comunicação: Nenhuma leitura recebida há {$tempo_sem_comunicacao_min} minutos.";
 }
 if ($alerta_parada_cardiaca) {
-    $detalhes[] = "Sinal travado (Parada Cardíaca): O sensor enviou {$total_validos} leituras nas últimas {$hours}h sem variação de nível (variação de apenas " . number_format($variacao_nivel, 2) . " cm). Possível oxidação nos contatos da sonda.";
+    $detalhes[] = "Sinal travado (Parada Cardíaca): O sensor enviou {$total_validos} leituras nas últimas {$hours}h com pouca ou nenhuma variação (variação de apenas " . number_format($variacao_nivel, 2) . " cm, desvio padrão " . number_format($stddev, 3) . "). Possível oxidação nos contatos da sonda.";
 }
 if ($alerta_ruido_excessivo) {
     $detalhes[] = "Excesso de ruídos: {$ruidos_count} das {$total_itens} leituras (" . number_format($pct_ruido, 1) . "%) apresentaram valores com ruído. Possível mau contato/oxidação na sonda.";
