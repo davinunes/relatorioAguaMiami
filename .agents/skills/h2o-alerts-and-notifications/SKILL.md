@@ -9,8 +9,9 @@ Esta skill descreve o subsistema de checagem de alertas, diagnóstico de anomali
 
 ## Monitoramento, Diagnóstico e Tendência ([alert.php](file:///e:/DEV/relatorioAguaMiami/alert.php))
 
+- **Regra Fundamental de Filtragem**: As leituras de ruído (`Valor + alturaSonda > 220` ou `< 2`) são purgadas **antes** de qualquer avaliação. Ruídos **NUNCA** são considerados para o cálculo da **Tendência** nem para o **Alerta de Nível Alto**.
 - Consulta as leituras recentes do `sensor` em uma janela de diagnóstico (padrão de 3h, ajustável via `hours`).
-- Calcula a **Tendência Dinâmica** no final da curva (`cauda`):
+- Calcula a **Tendência Dinâmica** considerando estritamente leituras válidas no final da curva (`cauda`):
   - **`ENCHENDO`**: Subida contínua do nível ($\Delta V > +0.5\text{ cm}$).
   - **`ESVAZIANDO`**: Queda contínua do nível ($\Delta V < -0.5\text{ cm}$).
   - **`ESTAVEL`**: Nível estável ($|\Delta V| \le 0.5\text{ cm}$).
@@ -19,7 +20,7 @@ Esta skill descreve o subsistema de checagem de alertas, diagnóstico de anomali
   - **`alerta_parada_cardiaca`**: Detecta sonda travada/oxidada (sinal plano sem flutuação de zigue-zague).
   - **`alerta_ruido_excessivo`**: Detecta falso-contato/oxidação parcial (mais de 15% de leituras com ruído).
   - **`alerta_sem_comunicacao`**: Detecta interrupção no envio de dados (> 60 min sem pings).
-  - **`alerta_nivel`**: Detecta nível crítico (> 75cm).
+  - **`alerta_nivel`**: Detecta nível crítico (> 75cm em leituras válidas).
 
 ## Gerador de Imagens de Gráficos ([get_chart_image.php](file:///e:/DEV/relatorioAguaMiami/get_chart_image.php))
 

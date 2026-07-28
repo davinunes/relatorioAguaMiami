@@ -71,17 +71,19 @@ if (!empty($leituras)) {
 
         $val = (double)$l['Valor'] + $ajuste;
 
-        // Contagem de alerta tradicional de nível alto na última hora
-        if ($ts >= $uma_hora_atras_ts && $val > 75) {
-            $total_alerta_1h++;
-        }
+        // Filtro de ruído PRIMEIRO: ruídos não entram em alertas de nível nem em tendência
+        $isRuido = ($val > 220 || $val < 2);
 
-        // Filtro de ruído
-        if ($val > 220 || $val < 2) {
+        if ($isRuido) {
             $ruidos_count++;
         } else {
             $valores_validos[] = $val;
             $leituras_validas[] = ['ts' => $ts, 'valor' => $val];
+
+            // Contagem de alerta tradicional de nível alto na última hora (APENAS LEITURAS VÁLIDAS)
+            if ($ts >= $uma_hora_atras_ts && $val > 75) {
+                $total_alerta_1h++;
+            }
         }
     }
 }
