@@ -12,6 +12,7 @@ include "database.php";
 
 $sensor_id = filter_input(INPUT_GET, 'sensor', FILTER_VALIDATE_INT);
 $since_seconds = filter_input(INPUT_GET, 'since', FILTER_VALIDATE_INT);
+$debug = (filter_input(INPUT_GET, 'debug') === 'true');
 
 if (!$sensor_id || !$since_seconds) {
     echo json_encode(['success' => false, 'message' => 'Parâmetros inválidos.']);
@@ -38,11 +39,25 @@ $sql = "SELECT * FROM h2o.leituras WHERE sensor = $sensor_id AND `timestamp` > '
 $leituras = DBQ($sql);
 
 $newPoints = [];
+$ruidos = [];
 date_default_timezone_set('America/Sao_Paulo');
 
 foreach ($leituras as $h) {
     $h['Valor'] += $ajuste;
-    if ($h['Valor'] > 220 || $h['Valor'] < 2) continue;
+    $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
+
+    if ($isRuido && !$debug) {
+        $timestamp_local = strtotime($h['timestamp'] . ' UTC');
+        $timestamp_js = $timestamp_local * 1000;
+        $ruidos[] = [
+            'id' => $h['id'],
+            'timestamp' => $h['timestamp'],
+            'timestamp_js' => $timestamp_js,
+            'valor' => $h['Valor'],
+            'valor_plot' => $h['Valor'] * -1
+        ];
+        continue;
+    }
 
     $timestamp_local = strtotime($h['timestamp'] . ' UTC');
     $timestamp_js = $timestamp_local * 1000;
@@ -62,6 +77,7 @@ $ult_att = $ultimo ? date("d/m/Y H:i:s", strtotime($ultimo[0]['timestamp'])) : '
 echo json_encode([
     'success' => true,
     'newPoints' => $newPoints,
+    'ruidos' => $ruidos,
     'ult_att' => $ult_att
 ]);
 ?>

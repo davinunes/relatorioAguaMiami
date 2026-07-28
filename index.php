@@ -131,6 +131,9 @@ $caixas = DBQ($sql);
     </div>
     <div class="row">
         <form class="col s12" method="GET" action="">
+            <?php if (isset($_GET['debug']) && $_GET['debug'] === 'true') { ?>
+                <input type="hidden" name="debug" value="true">
+            <?php } ?>
             <div class="input-field col l4 s4">
                 <input id="start" name="start" type="date" class="validate" value="<?= htmlspecialchars($_GET['start']) ?>">
                 <label for="start">De</label>
@@ -246,6 +249,9 @@ var timer = null;
 
 // Function to update charts dynamically
 function updateChartsData() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDebug = urlParams.get('debug') === 'true';
+
     for (const sensorId in chartInstances) {
         if (!chartInstances.hasOwnProperty(sensorId)) continue;
         
@@ -262,10 +268,16 @@ function updateChartsData() {
             type: 'GET',
             data: {
                 sensor: sensorId,
-                since: sinceSeconds
+                since: sinceSeconds,
+                debug: isDebug ? 'true' : 'false'
             },
             dataType: 'json',
             success: function(response) {
+                if (response.ruidos && response.ruidos.length > 0) {
+                    if (!instance.ruidos) instance.ruidos = [];
+                    instance.ruidos = instance.ruidos.concat(response.ruidos);
+                }
+
                 if (response.success && response.newPoints && response.newPoints.length > 0) {
                     const series = chart.series[0];
                     let maxTimestampJs = lastTimestampJs;
@@ -275,8 +287,8 @@ function updateChartsData() {
                         const lastPointTimestampJs = maxTimestampJs;
                         const intervalSeconds = (currentTimestampJs - lastPointTimestampJs) / 1000;
                         
-                        // Insert null point if there is a gap greater than 10 minutes (600 seconds)
-                        if (intervalSeconds > 600) {
+                        // Insert null point if there is a gap greater than 20 minutes (1200 seconds)
+                        if (intervalSeconds > 1200) {
                             series.addPoint([currentTimestampJs - 1000, null], false);
                         }
                         
@@ -327,6 +339,7 @@ $(document).ready(function() {
     const urlParams = new URLSearchParams(window.location.search);
     const startDate = urlParams.get('start') || '';
     const endDate = urlParams.get('end') || '';
+    const isDebug = urlParams.get('debug') === 'true';
     const isHistoricalView = (endDate !== '');
 
     // Configure the progress bar timer if it's not a historical view
@@ -357,7 +370,8 @@ $(document).ready(function() {
             data: {
                 sensor: sensorId,
                 start: startDate,
-                end: endDate
+                end: endDate,
+                debug: isDebug ? 'true' : 'false'
             },
             dataType: 'json',
             success: function(response) {
@@ -379,7 +393,8 @@ $(document).ready(function() {
                     
                     chartInstances[sensorId] = {
                         chart: chart,
-                        lastTimestampJs: maxTimestampJs
+                        lastTimestampJs: maxTimestampJs,
+                        ruidos: response.ruidos || []
                     };
                 } else {
                     // Se falhar (ex: sem dados), mostra a mensagem de erro

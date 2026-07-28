@@ -46,11 +46,14 @@ $caixa = $caixa[0];
 $nome = $caixa['nome'];
 $ajuste = (double)$caixa['alturaSonda'];
 
+$debug = (filter_input(INPUT_GET, 'debug') === 'true');
+
 // Busca as leituras correspondentes
 $sql = "SELECT * FROM h2o.leituras l WHERE l.sensor = ".$sensor_id." AND l.`timestamp` BETWEEN $start AND $end ORDER BY l.`id` ASC";
 $historico = DBQ($sql);
 
 $seriesData = [];
+$ruidos = [];
 $anterior = false;
 $intervalo = 0;
 
@@ -58,7 +61,20 @@ date_default_timezone_set('America/Sao_Paulo');
 
 foreach ($historico as $h) {
     $h['Valor'] += $ajuste;
-    if ($h['Valor'] > 220 || $h['Valor'] < 2) continue;
+    $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
+
+    if ($isRuido && !$debug) {
+        $timestamp_local = strtotime($h['timestamp'] . ' UTC');
+        $timestamp_js = $timestamp_local * 1000;
+        $ruidos[] = [
+            'id' => $h['id'],
+            'timestamp' => $h['timestamp'],
+            'timestamp_js' => $timestamp_js,
+            'valor' => $h['Valor'],
+            'valor_plot' => $h['Valor'] * -1
+        ];
+        continue;
+    }
 
     if ($anterior) {
         $intervalo = strtotime($h['timestamp']) - $anterior;
@@ -70,7 +86,7 @@ foreach ($historico as $h) {
     $timestamp_js = $timestamp_local * 1000; 
     $valor_plot = $h['Valor'] * -1;
 
-    if ($intervalo > 600) { // Insere ponto nulo para criar um buraco no gráfico
+    if ($intervalo > 1200) { // Insere ponto nulo para criar um buraco no gráfico se intervalo > 20 min (1200s)
         $seriesData[] = [$timestamp_js, null];
     }
     $seriesData[] = [$timestamp_js, $valor_plot];

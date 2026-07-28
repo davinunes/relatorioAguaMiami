@@ -16,7 +16,7 @@ include "database.php";
 $sensor_id = filter_input(INPUT_GET, 'sensor', FILTER_VALIDATE_INT);
 
 if (!$sensor_id) {
-    http_response_code(400); 
+    http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'ID do sensor inválido ou não fornecido.']);
     exit();
 }
@@ -49,7 +49,7 @@ $uma_hora_atras_br = date("d/m/Y H:i:s", $timestamp_uma_hora_atras);
 $sql_leituras = "
     SELECT
         COUNT(*) AS total_itens_encontrados,
-        SUM(CASE WHEN Valor > 100 THEN 1 ELSE 0 END) AS total_alerta
+        SUM(CASE WHEN Valor > 75 THEN 1 ELSE 0 END) AS total_alerta
     FROM
         h2o.leituras
     WHERE
@@ -71,7 +71,7 @@ if (!empty($contatos_res)) {
 // 5. Processa o resultado e monta a resposta JSON
 if ($resultado && isset($resultado[0])) {
     $dados = $resultado[0];
-    
+
     // Gera a URL absoluta para a imagem do gráfico das últimas 24h
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
     $domainName = $_SERVER['HTTP_HOST'] ?? 'localhost';

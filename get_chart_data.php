@@ -19,7 +19,7 @@ include "database.php"; // Sua conexão com o banco
  * Função principal que busca e formata os dados para UM gráfico.
  * Agora ela retorna um array em vez de imprimir HTML/JS.
  */
-function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
+function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug = false) {
     global $cor; // Cores que você definiu
 
     // ... (o início da sua função historico original) ...
@@ -35,6 +35,7 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
     }
     
     $seriesData = [];
+    $ruidos = [];
     $anterior = false;
     $intervalo = 0;
 	
@@ -42,7 +43,20 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
 
     foreach ($dados_para_grafico as $h) {
         $h['Valor'] += $ajuste;
-        if ($h['Valor'] > 220 || $h['Valor'] < 2) continue;
+        $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
+
+        if ($isRuido && !$debug) {
+            $timestamp_local = strtotime($h['timestamp'] . ' UTC');
+            $timestamp_js = $timestamp_local * 1000;
+            $ruidos[] = [
+                'id' => $h['id'],
+                'timestamp' => $h['timestamp'],
+                'timestamp_js' => $timestamp_js,
+                'valor' => $h['Valor'],
+                'valor_plot' => $h['Valor'] * -1
+            ];
+            continue;
+        }
 
         if ($anterior) {
             $intervalo = strtotime($h['timestamp']) - $anterior;
@@ -54,7 +68,7 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
         $timestamp_js = $timestamp_local * 1000; 
         $valor_plot = $h['Valor'] * -1;
 
-        if ($intervalo > 600) { // Insere ponto nulo para criar um buraco no gráfico
+        if ($intervalo > 1200) { // Insere ponto nulo para criar um buraco no gráfico se o intervalo for maior que 20 minutos (1200 segundos)
             $seriesData[] = [$timestamp_js, null];
         }
         $seriesData[] = [$timestamp_js, $valor_plot];
@@ -134,7 +148,7 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste) {
 		]
     ];
 
-    return ['success' => true, 'chartOptions' => $chartOptions];
+    return ['success' => true, 'chartOptions' => $chartOptions, 'ruidos' => $ruidos];
 }
 
 // --- PONTO DE ENTRADA DO SCRIPT ---
@@ -144,6 +158,8 @@ if (!$sensor_id) {
     echo json_encode(['success' => false, 'message' => 'ID do sensor inválido.']);
     exit();
 }
+
+$debug = (filter_input(INPUT_GET, 'debug') === 'true');
 
 // Lógica de datas (similar à original)
 if (!empty($_GET['start'])) {
@@ -169,6 +185,6 @@ if (empty($caixa)) {
 $caixa = $caixa[0];
 
 // Chama a função para obter os dados e imprime o resultado em JSON
-$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda']);
+$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda'], $debug);
 echo json_encode($result);
 ?>
