@@ -1,0 +1,666 @@
+{
+  "name": "Monitor Nivel Agua",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2016,
+        208
+      ],
+      "id": "e855791c-5b45-4bc9-931b-37b99923415f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { sensor_id: 1 },\n  { sensor_id: 2 },\n  { sensor_id: 3 },\n  { sensor_id: 4 },\n  { sensor_id: 5 },\n  { sensor_id: 6 },\n  { sensor_id: 10 },\n  { sensor_id: 11 }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        192
+      ],
+      "id": "14eaf05c-b7d5-44ee-bd21-5dcfc9ebe536",
+      "name": "Lista de Sensores"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.total_itens_encontrados }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "f7574dd0-8183-491b-8df5-961cd5d91428"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "semInternet"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "265006d6-72c4-4e65-b501-d375e4273b5c",
+                    "leftValue": "={{ $json.alerta }}",
+                    "rightValue": "={{ $json.total_itens_encontrados - 10 }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "nivelBaixo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ad9ed440-a118-419b-b231-7316694b30a1",
+                    "leftValue": "={{ $json.diagnostico.alerta_parada_cardiaca }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sensorOxidado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6b5b06cb-b3ee-4f42-bcde-764fc89fb3ef",
+                    "leftValue": "={{true}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tudoCerto"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -288,
+        192
+      ],
+      "id": "e2596311-89cd-4ea9-b10b-ea99b387f82c",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "Dinovatech",
+        "chatId": "={{ $json.chat_id }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"{{ $json.nome_sensor }}.jpg\",\n  \"url\": \"{{ $json.chart_image_url }}\"\n} ",
+        "reply_to": "=",
+        "caption": "=Informe diário para verificação do nivel de água do reservatório\n*{{ $json.nome_sensor }}*",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        240,
+        416
+      ],
+      "id": "586d1219-a82c-47b8-ac21-652862d2e44e",
+      "name": "Send an image",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://app.digitalinovation.com.br/alert.php",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sensor",
+              "value": "={{ $json.sensor_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1248,
+        192
+      ],
+      "id": "22372d5d-962d-433b-9281-4fbd2d64cc4e",
+      "name": "probe"
+    },
+    {
+      "parameters": {
+        "jsCode": "function formatWahaChatId(chatId) {\n  if (!chatId) return chatId;\n  const match = chatId.match(/^(\\d+)(@s\\.whatsapp\\.net)?$/);\n  if (!match) return chatId;\n  let number = match[1];\n  const domain = match[2] || '@s.whatsapp.net';\n  if (number.startsWith('55') && number.length === 13) {\n    if (number.charAt(4) === '9') {\n      number = number.slice(0, 4) + number.slice(5);\n    }\n  }\n  return number + domain;\n}\n\nconst result = [];\nfor (const item of $input.all()) {\n  const data = item.json;\n  const contatos = data.contatos || [];\n  for (const contato of contatos) {\n    result.push({\n      json: {\n        sensor_id: data.sensor_id,\n        nome_sensor: data.nome_sensor,\n        periodo_consultado: data.periodo_consultado,\n        total_itens_encontrados: data.total_itens_encontrados,\n        alerta: data.alerta,\n        diagnostico: data.diagnostico,\n        chart_image_url: data.chart_image_url,\n        chat_id: formatWahaChatId(contato)\n      }\n    });\n  }\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        32
+      ],
+      "id": "21090207-45d8-4edf-b6e9-fb27c3a863de",
+      "name": "Separar Contatos"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "Dinovatech",
+        "chatId": "={{ $json.chat_id }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"filename.jpg\",\n  \"url\": \"{{ $json.chart_image_url }}\"\n}",
+        "reply_to": "=",
+        "caption": "=Informamos que o sensor *{{ $json.nome_sensor }}* possivelmente está sem internet há pelo menos 1h.",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "a6401ab5-c31e-48c3-9a49-66c4e7892064",
+      "name": "informa sem internet",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "Dinovatech",
+        "chatId": "={{ $json.chat_id }}",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"filename.jpg\",\n  \"url\": \"{{ $json.chart_image_url }}\"\n}",
+        "reply_to": "=",
+        "caption": "=Informamos que o sensor *{{ $json.nome_sensor }}* possivelmente está abaixo do nivel razoavel há pelo menos 1h.",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        224,
+        160
+      ],
+      "id": "b94b68e9-961c-42cc-8c3f-19d26e52b08c",
+      "name": "informa nivel baixo",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "Sessions",
+        "operation": "Get",
+        "session": "Dinovatech",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -1840,
+        208
+      ],
+      "id": "c2931286-2723-419d-84bf-8d56420dbaad",
+      "name": "Get session information",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "28172670-c01e-4c9c-8af9-17768fb21f98",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "=WORKING",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1664,
+        208
+      ],
+      "id": "ca3d447d-2c2f-4e1d-b6aa-a91f9fd31348",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "sendRichMessage",
+        "chatId": "-5305882262",
+        "richFormat": "markdown",
+        "richMessageText": "=O status da sessão **Dinovatech** no Waha Mudou para: **{{ $json.status }}**\n\nURL: http://143.208.72.61:5010/dashboard\n\nAPI-Key: ```ev58u85q5gkqk72lnqtlliw5nq9y2qt9```",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1440,
+        384
+      ],
+      "id": "996d8f9f-ed22-4da1-adac-d7cda32a24f5",
+      "name": "Send a rich message",
+      "webhookId": "925d6303-4d7f-4a85-bb40-41e043e3c839",
+      "credentials": {
+        "telegramApi": {
+          "id": "T25yJ2AdQPmHZpK7",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "Dinovatech",
+        "chatId": "556196757676@s.whatsapp.net",
+        "reply_to": "=",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -2016,
+        -96
+      ],
+      "id": "5690e1db-5059-4703-899b-ea70727a15c7",
+      "name": "Send a text message",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f271f2b6-fd62-446b-9db0-7ac2d434b648",
+              "leftValue": "={{ $json.diagnostico.alerta_parada_cardiaca }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1040,
+        192
+      ],
+      "id": "91ffdd70-3f46-42a1-a074-be665ab0c52a",
+      "name": "seSaudavel"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0ea28d57-1a97-4bf4-be51-1403cad9cf0a",
+              "leftValue": "={{ new Date().getHours() * 60 + new Date().getMinutes() > 540 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -816,
+        416
+      ],
+      "id": "b3b8fbca-6f3a-4777-a014-07b918256cde",
+      "name": "Dormindo?",
+      "notesInFlow": true,
+      "notes": "Se já passou das 9 da manhã"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Image",
+        "session": "Dinovatech",
+        "chatId": "556196757676@s.whatsapp.net",
+        "file": "={\n  \"mimetype\": \"image/jpeg\",\n  \"filename\": \"filename.jpg\",\n  \"url\": \"{{ $json.chart_image_url }}\"\n}",
+        "reply_to": "=",
+        "caption": "=Informamos que o sensor *{{ $json.nome_sensor }}* possivelmente está danificado!\nDetalhes:\n{{ $json.diagnostico.detalhes }}",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        -576,
+        272
+      ],
+      "id": "7a58575b-3126-43e1-af47-748e7440179e",
+      "name": "Informa Sensor Defeito",
+      "credentials": {
+        "wahaApi": {
+          "id": "mTGiRp8c9dgH5riS",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d75de2a5-184c-4e56-8f7f-eaec7100b86e",
+              "leftValue": "={{ new Date().getHours() === 8 || new Date().getHours() === 17 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -48,
+        432
+      ],
+      "id": "65ef672d-e419-4e31-a2ab-35767be613ff",
+      "name": "HoraDoInforme",
+      "notesInFlow": true,
+      "notes": "Se é 8 ou 17h"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get session information",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lista de Sensores": {
+      "main": [
+        [
+          {
+            "node": "probe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "informa sem internet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "informa nivel baixo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "HoraDoInforme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "probe": {
+      "main": [
+        [
+          {
+            "node": "seSaudavel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Contatos": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get session information": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Lista de Sensores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a rich message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a rich message": {
+      "main": [
+        []
+      ]
+    },
+    "seSaudavel": {
+      "main": [
+        [
+          {
+            "node": "Separar Contatos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dormindo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dormindo?": {
+      "main": [
+        [
+          {
+            "node": "Informa Sensor Defeito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HoraDoInforme": {
+      "main": [
+        [
+          {
+            "node": "Send an image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "d0681e17-77b0-47be-b0e3-f1e1438e4b8d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3f99ecfe99a13518508c83d841a94bd09a99a44e4e27407777f360bae2015f8a"
+  },
+  "nodeGroups": [],
+  "id": "074VFlTc7dzgNElJ",
+  "tags": []
+}
