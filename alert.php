@@ -81,7 +81,7 @@ if (!empty($leituras)) {
             $leituras_validas[] = ['ts' => $ts, 'valor' => $val];
 
             // Contagem de alerta tradicional de nível alto na última hora (APENAS LEITURAS VÁLIDAS)
-            if ($ts >= $uma_hora_atras_ts && $val > 75) {
+            if ($ts >= $uma_hora_atras_ts && $val > 100) {
                 $total_alerta_1h++;
             }
         }
