@@ -23,9 +23,18 @@ $fosso = DBEscape($_POST['fosso'] ?? 0);
 $alturaSonda = DBEscape($_POST['altura_sonda'] ?? 0);
 $ativo = 1; // Sensor já começa ativo por padrão
 
+// valor_referencia: vazio ou NULL = calcular automaticamente
+$vr_raw = $_POST['valor_referencia'] ?? null;
+if ($vr_raw === '' || $vr_raw === null) {
+    $valor_referencia_sql = 'NULL';
+} else {
+    $vr_escaped = DBEscape($vr_raw);
+    $valor_referencia_sql = "'" . $vr_escaped . "'";
+}
+
 // Constrói a query de forma segura
-$sql  = "INSERT INTO h2o.reservatorio (sensor, nome, fosso, alturaSonda, ativo) ";
-$sql .= "VALUES ('$sensor_id', '$nome', '$fosso', '$alturaSonda', '$ativo')";
+$sql  = "INSERT INTO h2o.reservatorio (sensor, nome, fosso, alturaSonda, ativo, valor_referencia) ";
+$sql .= "VALUES ('$sensor_id', '$nome', '$fosso', '$alturaSonda', '$ativo', $valor_referencia_sql)";
 
 if(DBExecute($sql)){
     echo "Sensor criado com sucesso!";

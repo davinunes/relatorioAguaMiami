@@ -66,6 +66,12 @@ $migrations = [
             "ALTER TABLE h2o.usuario_sensores ADD CONSTRAINT fk_usuario_sensores_reservatorio FOREIGN KEY (sensor_id) REFERENCES h2o.reservatorio(sensor) ON DELETE CASCADE ON UPDATE CASCADE;",
             "ALTER TABLE h2o.contatos_notificacao ADD CONSTRAINT fk_contatos_notificacao_reservatorio FOREIGN KEY (sensor_id) REFERENCES h2o.reservatorio(sensor) ON DELETE CASCADE ON UPDATE CASCADE;"
         ]
+    ],
+    '008_add_valor_referencia_reservatorio' => [
+        'description' => 'Adiciona coluna valor_referencia em reservatorio para sobrescrever o limite da zona Normal',
+        'sql' => [
+            "ALTER TABLE h2o.reservatorio ADD COLUMN valor_referencia DECIMAL(8,2) DEFAULT NULL COMMENT 'Valor ajustado (com alturaSonda somada) em cm que define o teto da zona Normal. Se NULL, calcula automaticamente.';"
+        ]
     ]
 ];
 

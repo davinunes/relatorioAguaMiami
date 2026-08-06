@@ -56,7 +56,8 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                        data-sensor="<?= $c['sensor'] ?>"
                        data-alturasonda="<?= $c['alturaSonda'] ?>"
                        data-fosso="<?= $c['fosso'] ?>"
-                       data-ativo="<?= $c['ativo'] ?>">
+                       data-ativo="<?= $c['ativo'] ?>"
+                       data-valorreferencia="<?= $c['valor_referencia'] ?>">
                        <i class="material-icons">edit</i>
                     </a>
                     <a href="#modal-contatos-admin" class="btn-floating waves-effect waves-light green tooltipped contatos-admin modal-trigger"
@@ -117,6 +118,14 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                         <i class="material-icons prefix">vertical_align_top</i>
                         <input id="editar-alturasonda" type="number" class="validate">
                         <label for="editar-alturasonda">Fator de Correção (cm)</label>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <i class="material-icons prefix">space_bar</i>
+                        <input id="editar-valorreferencia" type="number" step="0.01" class="validate" placeholder="Deixe vazio para calcular automaticamente">
+                        <label for="editar-valorreferencia">Valor de Referência (cm) - Limite da Zona Normal (inclui Fator de Correção)</label>
+                        <span class="helper-text">Define o teto da zona Azul (Normal). Se vazio, usa o mínimo dos vales calculado nos últimos 7 dias.</span>
                     </div>
                 </div>
                 <div class="row">
@@ -196,6 +205,14 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                         <label for="criar-alturasonda">Fator de Correção (cm)</label>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <i class="material-icons prefix">space_bar</i>
+                        <input id="criar-valorreferencia" type="number" step="0.01" class="validate" placeholder="Deixe vazio para calcular automaticamente">
+                        <label for="criar-valorreferencia">Valor de Referência (cm) - Limite da Zona Normal (inclui Fator de Correção)</label>
+                        <span class="helper-text">Define o teto da zona Azul (Normal). Se vazio, usa o mínimo dos vales calculado nos últimos 7 dias.</span>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -265,6 +282,7 @@ $(document).ready(function(){
         const alturasonda = $(this).data("alturasonda");
         const fosso = $(this).data("fosso");
         const ativo = $(this).data("ativo");
+        const valorreferencia = $(this).data("valorreferencia");
 
         // Preenche o modal de edição com os dados
         $('#editar-nome-sensor').text(nome);
@@ -273,6 +291,7 @@ $(document).ready(function(){
         $('#editar-sensor').val(sensor);
         $('#editar-alturasonda').val(alturasonda);
         $('#editar-fosso').val(fosso);
+        $('#editar-valorreferencia').val(valorreferencia && valorreferencia !== '' && valorreferencia !== null ? valorreferencia : '');
         $('#editar-ativo').prop('checked', ativo == 1); // Marca o switch se estiver ativo
         
         // Atualiza os labels para o estado 'active' se houver conteúdo
@@ -295,7 +314,8 @@ $(document).ready(function(){
             sensor_id: $("#criar-sensor-id").val(),
             nome_sensor: $("#criar-nome").val(),
             fosso: $("#criar-fosso").val(),
-            altura_sonda: $("#criar-alturasonda").val()
+            altura_sonda: $("#criar-alturasonda").val(),
+            valor_referencia: $("#criar-valorreferencia").val()
         };
 
         // Validação simples
@@ -319,6 +339,7 @@ $(document).ready(function(){
             nome: $("#editar-nome").val(),
             alturaSonda: $("#editar-alturasonda").val(),
             fosso: $("#editar-fosso").val(),
+            valor_referencia: $("#editar-valorreferencia").val(),
             ativo: $("#editar-ativo").is(':checked') ? 1 : 0 // Pega o valor do switch
         };
         

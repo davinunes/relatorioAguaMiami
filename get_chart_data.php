@@ -19,7 +19,7 @@ include "database.php"; // Sua conexão com o banco
  * Função principal que busca e formata os dados para UM gráfico.
  * Agora ela retorna um array em vez de imprimir HTML/JS.
  */
-function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug = false, $shadow = false) {
+function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug = false, $shadow = false, $valor_referencia = null) {
     global $cor; // Cores que você definiu
 
     // ... (o início da sua função historico original) ...
@@ -88,8 +88,15 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug =
 	$yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
 
     // Obtém o valor de comparação para definir as faixas de nível (Ponto de Virada)
-    $valor_comparacao = get_sensor_comparison_value($sensor_id);
-    $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
+    // Prioridade 1: valor_referencia manual (já vem ajustado com alturaSonda)
+    // Prioridade 2: método automático (retorna Valor bruto, precisa somar ajuste)
+    // Fallback: -35 cm (~35cm abaixo do topo)
+    if ($valor_referencia !== null) {
+        $valor_plot_comp = $valor_referencia * -1;
+    } else {
+        $valor_comparacao = get_sensor_comparison_value($sensor_id);
+        $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
+    }
 
     $plotBands = [
         [
@@ -230,7 +237,10 @@ if (empty($caixa)) {
 }
 $caixa = $caixa[0];
 
+// Extrai o valor_referencia (já com ajuste de alturaSonda somado) ou NULL para calcular automaticamente
+$valor_referencia = isset($caixa['valor_referencia']) && $caixa['valor_referencia'] !== null && $caixa['valor_referencia'] !== '' ? (double)$caixa['valor_referencia'] : null;
+
 // Chama a função para obter os dados e imprime o resultado em JSON
-$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda'], $debug, $shadow);
+$result = getChartData($sensor_id, $caixa['fosso'], $caixa['nome'], $start, $end, $caixa['alturaSonda'], $debug, $shadow, $valor_referencia);
 echo json_encode($result);
 ?>

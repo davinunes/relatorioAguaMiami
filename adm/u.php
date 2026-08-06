@@ -15,12 +15,22 @@ $fosso = DBEscape($_POST['fosso']);
 $nome = DBEscape($_POST['nome']);
 $ativo = DBEscape($_POST['ativo']);
 
+// valor_referencia: vazio ou NULL significa "calcular automaticamente"
+$vr_raw = $_POST['valor_referencia'] ?? null;
+if ($vr_raw === '' || $vr_raw === null) {
+    $valor_referencia_sql = 'NULL';
+} else {
+    $vr_escaped = DBEscape($vr_raw);
+    $valor_referencia_sql = "'" . $vr_escaped . "'";
+}
+
 // Constrói a query de forma segura
 $sql  = "UPDATE h2o.reservatorio SET ";
 $sql .= " alturaSonda = '$alturaSonda',";
 $sql .= " fosso = '$fosso',";
 $sql .= " nome = '$nome',";
-$sql .= " ativo = '$ativo'";
+$sql .= " ativo = '$ativo',";
+$sql .= " valor_referencia = $valor_referencia_sql";
 $sql .= " WHERE id = '$id'";
 
 if(DBExecute($sql)){

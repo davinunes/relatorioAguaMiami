@@ -45,6 +45,7 @@ if (empty($caixa)) {
 $caixa = $caixa[0];
 $nome = $caixa['nome'];
 $ajuste = (double)$caixa['alturaSonda'];
+$valor_referencia = isset($caixa['valor_referencia']) && $caixa['valor_referencia'] !== null && $caixa['valor_referencia'] !== '' ? (double)$caixa['valor_referencia'] : null;
 
 $debug = (filter_input(INPUT_GET, 'debug') === 'true');
 $shadow = (filter_input(INPUT_GET, 'shadow') === 'true');
@@ -104,8 +105,15 @@ $now_timestamp_js = strtotime($now_string. ' UTC') * 1000;
 $yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
 
 // Obtém o valor de comparação para definir as faixas de nível (Ponto de Virada)
-$valor_comparacao = get_sensor_comparison_value($sensor_id);
-$valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
+// Prioridade 1: valor_referencia manual (já vem ajustado com alturaSonda)
+// Prioridade 2: método automático (retorna Valor bruto, precisa somar ajuste)
+// Fallback: -35 cm (~35cm abaixo do topo)
+if ($valor_referencia !== null) {
+    $valor_plot_comp = $valor_referencia * -1;
+} else {
+    $valor_comparacao = get_sensor_comparison_value($sensor_id);
+    $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
+}
 
 $plotBands = [
     [
