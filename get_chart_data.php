@@ -87,29 +87,30 @@ function getChartData($sensor_id, $fosso, $nome, $start, $end, $ajuste, $debug =
     $now_timestamp_js = strtotime($now_string. ' UTC') * 1000;
 	$yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
 
-    // Obtém o valor de comparação para a plot-band marrom (Ponto de Virada)
+    // Obtém o valor de comparação para definir as faixas de nível (Ponto de Virada)
     $valor_comparacao = get_sensor_comparison_value($sensor_id);
-    $plotBands = [
-        ['from' => 0, 'to' => -30, 'color' => 'rgba(227, 22, 22, 0.1)', 'label' => ['text' => '...']],
-        ['from' => -31, 'to' => -100, 'color' => 'rgba(29, 27, 22, 0.1)', 'label' => ['text' => '...']],
-        ['from' => -100, 'to' => -240, 'color' => 'rgba(68, 170, 213, 0.1)', 'label' => ['text' => '...']]
-    ];
+    $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
 
-    if ($valor_comparacao !== null) {
-        $valor_plot_comp = ($valor_comparacao + $ajuste) * -1;
-        $plotBands[] = [
-            'from' => $valor_plot_comp - 0.3,
-            'to' => $valor_plot_comp + 0.3,
-            'color' => 'rgba(139, 69, 19, 0.7)', // Marrom (SaddleBrown)
-            'label' => [
-                'text' => 'Comparação: ' . number_format($valor_comparacao + $ajuste, 1) . ' cm',
-                'style' => ['color' => '#5D2E0A', 'fontWeight' => 'bold'],
-                'align' => 'right',
-                'x' => -10
-            ],
-            'zIndex' => 3
-        ];
-    }
+    $plotBands = [
+        [
+            'from' => $valor_plot_comp, 
+            'to' => 0, 
+            'color' => 'rgba(68, 170, 213, 0.1)', // Azul - Zona de Operação Normal (Suave)
+            'label' => ['text' => 'Normal', 'style' => ['color' => '#44AAD5']]
+        ],
+        [
+            'from' => -100, 
+            'to' => $valor_plot_comp, 
+            'color' => 'rgba(255, 165, 0, 0.1)', // Laranja - Alerta/Baixando
+            'label' => ['text' => 'Atenção', 'style' => ['color' => '#FFA500']]
+        ],
+        [
+            'from' => -240, 
+            'to' => -100, 
+            'color' => 'rgba(227, 22, 22, 0.1)', // Vermelho - Crítico (Vazio)
+            'label' => ['text' => 'Crítico', 'style' => ['color' => '#E31616']]
+        ]
+    ];
 
     // A série de dados para o ponto de referência
     $nowSeries = [
