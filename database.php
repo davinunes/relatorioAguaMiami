@@ -60,4 +60,48 @@ function DBQ($query){ # Executa um Comando na Conexão
 	
 	return $dados;
 }
+
+/**
+ * Obtém o valor de comparação (mínimo que mais se repete) para um sensor específico.
+ * Baseado na lógica de detecção de pontos de virada (vales isolados) nos últimos 7 dias.
+ */
+function get_sensor_comparison_value($sensor_id) {
+    $sensor_id = (int)$sensor_id;
+    $sql = "WITH PontoDeVirada AS ( 
+                SELECT 
+                    sensor, 
+                    Valor, 
+                    LAG(Valor, 1) OVER (PARTITION BY sensor ORDER BY timestamp) AS valor_anterior, 
+                    LEAD(Valor, 1) OVER (PARTITION BY sensor ORDER BY timestamp) AS valor_seguinte 
+                FROM leituras 
+                WHERE sensor = $sensor_id
+                  AND timestamp >= NOW() - INTERVAL 7 DAY 
+                  AND valor > 5 
+            ), 
+            ValesIsolados AS ( 
+                SELECT sensor, Valor 
+                FROM PontoDeVirada 
+                WHERE Valor < valor_anterior 
+                  AND Valor <= valor_seguinte 
+            ), 
+            ContagemVales AS ( 
+                SELECT 
+                    sensor, 
+                    Valor, 
+                    COUNT(*) AS qtd_vezes, 
+                    ROW_NUMBER() OVER (PARTITION BY sensor ORDER BY COUNT(*) DESC, Valor ASC) AS ranking 
+                FROM ValesIsolados 
+                GROUP BY sensor, Valor 
+            ) 
+            SELECT 
+                Valor AS minimo_que_mais_se_repete
+            FROM ContagemVales 
+            WHERE ranking = 1";
+            
+    $res = DBQ($sql);
+    if (!empty($res)) {
+        return (double)$res[0]['minimo_que_mais_se_repete'];
+    }
+    return null;
+}
 ?>
