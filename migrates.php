@@ -72,6 +72,12 @@ $migrations = [
         'sql' => [
             "ALTER TABLE h2o.reservatorio ADD COLUMN valor_referencia DECIMAL(8,2) DEFAULT NULL COMMENT 'Valor ajustado (com alturaSonda somada) em cm que define o teto da zona Normal. Se NULL, calcula automaticamente.';"
         ]
+    ],
+    '009_add_wifi_pass_to_esp32_pings' => [
+        'description' => 'Adiciona coluna wifi_pass na tabela esp32_pings para armazenar a senha do Wi-Fi informada pela sonda',
+        'sql' => [
+            "ALTER TABLE h2o.esp32_pings ADD COLUMN wifi_pass VARCHAR(100) DEFAULT NULL AFTER ssid;"
+        ]
     ]
 ];
 

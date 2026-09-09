@@ -41,6 +41,21 @@ function formatLog($log) {
     }
     return $out;
 }
+
+function getWifiPassword($p) {
+    if (!empty($p['wifi_pass'])) {
+        return $p['wifi_pass'];
+    }
+    if (!empty($p['pass'])) {
+        return $p['pass'];
+    }
+    if (!empty($p['log_content'])) {
+        if (preg_match('/(?:wifi[_\s]*)?(?:pass(?:word)?|senha|key)\s*[:=]\s*([^\s\r\n;,\"<]+)/i', $p['log_content'], $m)) {
+            return $m[1];
+        }
+    }
+    return null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -65,6 +80,7 @@ function formatLog($log) {
         <?php foreach($pings as $p): 
             $analysis = analyzeLog($p['log_content']);
             $is_online = (time() - strtotime($p['created_at'])) < 300;
+            $wifi_pass = getWifiPassword($p);
         ?>
         <div class="col-12 mb-4">
             <div class="device-card p-3">
@@ -85,8 +101,15 @@ function formatLog($log) {
                 <div class="row mb-3">
                     <div class="col-md-2 small"><strong>IP:</strong> <?php echo $p['remote_ip']; ?></div>
                     <div class="col-md-2 small"><strong>Board:</strong> <?php echo $p['board']; ?></div>
-                    <div class="col-md-2 small"><strong>WiFi:</strong> <?php echo $p['ssid']; ?></div>
-                    <div class="col-md-3 small"><strong>Sensor ID:</strong> <?php echo $p['sensor_id']; ?></div>
+                    <div class="col-md-3 small">
+                        <strong>WiFi:</strong> <?php echo htmlspecialchars($p['ssid']); ?>
+                        <?php if ($wifi_pass): ?>
+                            <span class="badge bg-dark text-warning ms-1" title="Senha do Wi-Fi">
+                                <i class="fas fa-key me-1"></i><?php echo htmlspecialchars($wifi_pass); ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-2 small"><strong>Sensor ID:</strong> <?php echo $p['sensor_id']; ?></div>
                     <div class="col-md-3 text-end">
                         <span class="badge bg-danger"><?php echo $analysis['errors']; ?> Erros</span>
                         <span class="badge bg-info text-dark"><?php echo $analysis['ok']; ?> Sucessos</span>

@@ -13,6 +13,16 @@ $uuid       = DBEscape($_GET['uuid'] ?? 'unknown');
 $board      = DBEscape($_GET['board'] ?? 'N/A');
 $site_esp   = DBEscape($_GET['site_esp'] ?? 'N/A');
 $ssid       = DBEscape($_GET['ssid'] ?? 'N/A');
+
+// Captura a Senha do Wi-Fi via GET ou extrai do log
+$wifi_pass_raw = $_GET['wifi_pass'] ?? $_GET['pass'] ?? $_GET['wifi_password'] ?? $_GET['senha'] ?? '';
+if (empty($wifi_pass_raw) && !empty($log_decoded)) {
+    if (preg_match('/(?:wifi[_\s]*)?(?:pass(?:word)?|senha|key)\s*[:=]\s*([^\s\r\n;,\"<]+)/i', $log_decoded, $m)) {
+        $wifi_pass_raw = $m[1];
+    }
+}
+$wifi_pass  = DBEscape($wifi_pass_raw);
+
 $sensorId   = (int)($_GET['sensorId'] ?? 0);
 $version    = DBEscape($_GET['version'] ?? 'N/A');
 // Captura o IP real considerando Reverse Proxy SSL (Caddy / Nginx / Cloudflare)
@@ -31,9 +41,9 @@ $log_final  = DBEscape($log_decoded !== false ? $log_decoded : "Erro decodifica�
 
 // 3. Query de Inserção (Mantendo histórico)
 $query = "INSERT INTO esp32_pings (
-            uuid, board, site_esp, ssid, sensor_id, firmware_version, remote_ip, log_content
+            uuid, board, site_esp, ssid, wifi_pass, sensor_id, firmware_version, remote_ip, log_content
           ) VALUES (
-            '$uuid', '$board', '$site_esp', '$ssid', $sensorId, '$version', '$remote_ip', '$log_final'
+            '$uuid', '$board', '$site_esp', '$ssid', '$wifi_pass', $sensorId, '$version', '$remote_ip', '$log_final'
           )";
 
 if(DBExecute($query)){

@@ -37,6 +37,7 @@ CREATE TABLE `esp32_pings` (
   `board` varchar(50) DEFAULT NULL,
   `site_esp` varchar(100) DEFAULT NULL,
   `ssid` varchar(50) DEFAULT NULL,
+  `wifi_pass` varchar(100) DEFAULT NULL,
   `sensor_id` int(11) DEFAULT 0,
   `firmware_version` varchar(10) DEFAULT NULL,
   `remote_ip` varchar(45) DEFAULT NULL,
