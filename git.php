@@ -1,6 +1,6 @@
 <?php
 /**
- * Gerenciador de Atualizações Git & Migrações de Banco de Dados (Interface AJAX)
+ * Gerenciador de Atualizações Git & Migrações de Banco de Dados (Interface AJAX via SSH)
  * Projeto: relatorioAguaMiami
  * Path: /var/www/relatorioAguaMiami
  * Host: localhost
@@ -8,44 +8,25 @@
 
 $projectPath = '/var/www/relatorioAguaMiami';
 $sshHost     = 'localhost';
-$sshScript   = '/usr/bin/python3 /var/www/html/py/ssh.py';
+$sshScript   = '/var/www/html/py/ssh.py';
 $pemSaveDir  = '/var/www/html/py';
 $pemSavePath = $pemSaveDir . '/chave.pem';
 
-// Função auxiliar para executar comandos no servidor Linux local (com injeção automática de safe.directory no git)
+// Função auxiliar para executar comandos via ponte SSH (/var/www/html/py/ssh.py)
 function executarComando($cmd, $sshScript, $projectPath) {
-    // Injeta a opção '-c safe.directory=*' em todas as chamadas do git para evitar o erro 'dubious ownership' quando executado como www-data
-    $cmdParts = explode('&&', $cmd);
-    $newParts = [];
-    foreach ($cmdParts as $part) {
-        $partTrim = trim($part);
-        if (strpos($partTrim, 'git ') === 0) {
-            $newParts[] = preg_replace('/^git\s+/', "git -c safe.directory={$projectPath} -c safe.directory=* ", $partTrim);
-        } else {
-            $newParts[] = $partTrim;
-        }
-    }
-    $cmdFormatted = implode(' && ', $newParts);
-
-    $cmdFull = "cd {$projectPath} && {$cmdFormatted} 2>&1";
+    $cmdFull = "cd {$projectPath} && {$cmd}";
     
-    // Execução direta no shell do servidor Linux
-    $resDirect = shell_exec($cmdFull);
+    // Formatação da chamada Python idêntica aos projetos recMan / boss_v2
+    $comandoSSH = "/usr/bin/python3 {$sshScript} '" . str_replace("'", "'\\''", $cmdFull) . "'";
     
-    if ($resDirect !== null && trim($resDirect) !== '') {
-        return trim($resDirect);
+    $res = shell_exec($comandoSSH);
+    
+    // Fallback local se o SSH não retornar resultado
+    if ($res === null || trim($res) === '') {
+        $res = shell_exec("cd {$projectPath} && {$cmd} 2>&1");
     }
     
-    // Fallback via script Python SSH caso necessário
-    if (file_exists($sshScript)) {
-        $comandoSSH = "/usr/bin/python3 {$sshScript} " . escapeshellarg($cmdFull) . " 2>&1";
-        $resSSH = shell_exec($comandoSSH);
-        if ($resSSH !== null && trim($resSSH) !== '') {
-            return trim($resSSH);
-        }
-    }
-    
-    return "Sem retorno ou execução vazia.";
+    return $res ? trim($res) : "Sem retorno da execução.";
 }
 
 // Processador de Requisições AJAX (Retorna JSON)
@@ -67,7 +48,6 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
             }
             if (move_uploaded_file($_FILES['pem_file']['tmp_name'], $pemSavePath)) {
                 chmod($pemSavePath, 0600);
-                @chown($pemSavePath, 'www-data');
                 $response['action'] = 'Upload Chave PEM';
                 $response['message'] = "Chave PEM enviada com sucesso para <code>{$pemSavePath}</code> (permissão 0600 instalada).";
                 $response['output'] = "[OK] Chave PEM salva em: {$pemSavePath}\nPermissão alterada para 0600 com sucesso.";
@@ -115,14 +95,14 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
 }
 
 $terminalCommand = "cd {$projectPath} && git pull && php migrates.php";
-$sshCommand = "ssh -i {$pemSavePath} ubuntu@{$sshHost} \"cd {$projectPath} && git pull && php migrates.php\"";
+$sshCommand = "ssh -i {$pemSavePath} root@{$sshHost} \"cd {$projectPath} && git pull && php migrates.php\"";
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Atualizações & Migrações (AJAX)</title>
+    <title>Painel de Atualizações & Migrações (SSH / AJAX)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -140,7 +120,7 @@ $sshCommand = "ssh -i {$pemSavePath} ubuntu@{$sshHost} \"cd {$projectPath} && gi
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="text-white m-0"><i class="fas fa-code-branch text-primary me-2"></i> Painel de Atualizações & Migrações</h2>
-            <small class="text-muted">Sincronização Git e Migrações via AJAX sem recarga de página</small>
+            <small class="text-muted">Sincronização Git e Migrações via SSH (Ponte <code>ssh.py</code>) + AJAX</small>
         </div>
         <div>
             <span class="badge badge-path p-2 fs-6 me-2"><i class="fas fa-server me-1"></i> Host: <?php echo htmlspecialchars($sshHost); ?></span>
