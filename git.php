@@ -12,20 +12,31 @@ $sshScript   = '/usr/bin/python3 /var/www/html/py/ssh.py';
 $pemSaveDir  = '/var/www/html/py';
 $pemSavePath = $pemSaveDir . '/chave.pem';
 
-// Função auxiliar para executar comandos no servidor Linux local (com fallback de SSH)
+// Função auxiliar para executar comandos no servidor Linux local (com injeção automática de safe.directory no git)
 function executarComando($cmd, $sshScript, $projectPath) {
-    // Adiciona safe.directory para evitar erros de propriedade de pasta entre www-data e root/ubuntu
-    $gitSafeConfig = "git config --global --add safe.directory {$projectPath} 2>/dev/null; ";
-    $cmdFull = "cd {$projectPath} && {$gitSafeConfig} {$cmd} 2>&1";
+    // Injeta a opção '-c safe.directory=*' em todas as chamadas do git para evitar o erro 'dubious ownership' quando executado como www-data
+    $cmdParts = explode('&&', $cmd);
+    $newParts = [];
+    foreach ($cmdParts as $part) {
+        $partTrim = trim($part);
+        if (strpos($partTrim, 'git ') === 0) {
+            $newParts[] = preg_replace('/^git\s+/', "git -c safe.directory={$projectPath} -c safe.directory=* ", $partTrim);
+        } else {
+            $newParts[] = $partTrim;
+        }
+    }
+    $cmdFormatted = implode(' && ', $newParts);
+
+    $cmdFull = "cd {$projectPath} && {$cmdFormatted} 2>&1";
     
-    // 1. Tenta a execução direta via shell do servidor Linux
+    // Execução direta no shell do servidor Linux
     $resDirect = shell_exec($cmdFull);
     
     if ($resDirect !== null && trim($resDirect) !== '') {
         return trim($resDirect);
     }
     
-    // 2. Fallback via script Python SSH caso o shell direto não retorne nada
+    // Fallback via script Python SSH caso necessário
     if (file_exists($sshScript)) {
         $comandoSSH = "/usr/bin/python3 {$sshScript} " . escapeshellarg($cmdFull) . " 2>&1";
         $resSSH = shell_exec($comandoSSH);
