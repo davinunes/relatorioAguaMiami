@@ -12,11 +12,33 @@ $sshScript   = '/var/www/html/py/ssh.py';
 $pemSaveDir  = '/var/www/html/py';
 $pemSavePath = $pemSaveDir . '/chave.pem';
 
+// Função auxiliar para verificar a existência e detalhes da chave PEM instalada
+function getPemKeyStatus($pemSavePath) {
+    $altPath = '/var/www/html/py/mykeyopenssh.pem';
+    $targetPath = file_exists($pemSavePath) ? $pemSavePath : (file_exists($altPath) ? $altPath : null);
+
+    if ($targetPath) {
+        $perms = substr(sprintf('%o', fileperms($targetPath)), -4);
+        return [
+            'exists' => true,
+            'path' => $targetPath,
+            'perms' => $perms,
+            'label' => 'Instalada (' . $perms . ')'
+        ];
+    }
+    return [
+        'exists' => false,
+        'path' => null,
+        'perms' => null,
+        'label' => 'Não Instalada'
+    ];
+}
+
 // Função auxiliar para executar comandos via ponte SSH (/var/www/html/py/ssh.py)
 function executarComando($cmd, $sshScript, $projectPath) {
     $cmdFull = "cd {$projectPath} && {$cmd}";
     
-    // Formatação da chamada Python idêntica aos projetos recMan / boss_v2
+    // Invocação padronizada do ssh.py (idêntica ao recMan / boss_v2)
     $comandoSSH = "/usr/bin/python3 {$sshScript} '" . str_replace("'", "'\\''", $cmdFull) . "'";
     
     $res = shell_exec($comandoSSH);
@@ -38,7 +60,8 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
         'success' => true,
         'action' => '',
         'output' => '',
-        'message' => ''
+        'message' => '',
+        'keyStatus' => getPemKeyStatus($pemSavePath)
     ];
 
     if ($action === 'upload_pem') {
@@ -51,6 +74,7 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
                 $response['action'] = 'Upload Chave PEM';
                 $response['message'] = "Chave PEM enviada com sucesso para <code>{$pemSavePath}</code> (permissão 0600 instalada).";
                 $response['output'] = "[OK] Chave PEM salva em: {$pemSavePath}\nPermissão alterada para 0600 com sucesso.";
+                $response['keyStatus'] = getPemKeyStatus($pemSavePath);
             } else {
                 $response['success'] = false;
                 $response['action'] = 'Upload Chave PEM';
@@ -62,6 +86,34 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
             $response['action'] = 'Upload Chave PEM';
             $response['message'] = "Nenhum arquivo enviado ou falha no upload HTTP.";
             $response['output'] = "[ERRO] Nenhum arquivo .pem válido recebido.";
+        }
+        echo json_encode($response);
+        exit;
+    }
+
+    if ($action === 'save_pem_text') {
+        $pemText = trim($_POST['pem_text'] ?? '');
+        if (!empty($pemText)) {
+            if (!is_dir($pemSaveDir)) {
+                @mkdir($pemSaveDir, 0755, true);
+            }
+            if (file_put_contents($pemSavePath, $pemText) !== false) {
+                chmod($pemSavePath, 0600);
+                $response['action'] = 'Salvar Chave PEM';
+                $response['message'] = "Conteúdo da Chave PEM salvo com sucesso em <code>{$pemSavePath}</code> (permissão 0600 instalada).";
+                $response['output'] = "[OK] Conteúdo da chave PEM gravado em: {$pemSavePath}\nPermissão setada para 0600.";
+                $response['keyStatus'] = getPemKeyStatus($pemSavePath);
+            } else {
+                $response['success'] = false;
+                $response['action'] = 'Salvar Chave PEM';
+                $response['message'] = "Erro ao gravar a chave PEM em <code>{$pemSavePath}</code>. Verifique permissões da pasta.";
+                $response['output'] = "[ERRO] Falha ao escrever conteúdo em {$pemSavePath}";
+            }
+        } else {
+            $response['success'] = false;
+            $response['action'] = 'Salvar Chave PEM';
+            $response['message'] = "O texto da chave PEM não pode estar vazio.";
+            $response['output'] = "[ERRO] Nenhum texto fornecido.";
         }
         echo json_encode($response);
         exit;
@@ -94,6 +146,7 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
     exit;
 }
 
+$keyStatus = getPemKeyStatus($pemSavePath);
 $terminalCommand = "cd {$projectPath} && git pull && php migrates.php";
 $sshCommand = "ssh -i {$pemSavePath} root@{$sshHost} \"cd {$projectPath} && git pull && php migrates.php\"";
 ?>
@@ -111,6 +164,8 @@ $sshCommand = "ssh -i {$pemSavePath} root@{$sshHost} \"cd {$projectPath} && git 
         .console-box { background-color: #05070a; border: 1px solid #30363d; border-radius: 6px; color: #50fa7b; font-family: monospace; min-height: 220px; max-height: 480px; overflow-y: auto; }
         .badge-path { background-color: #21262d; color: #58a6ff; border: 1px solid #30363d; }
         .btn-action { min-width: 145px; }
+        .nav-tabs .nav-link { color: #8b949e; border-color: transparent; }
+        .nav-tabs .nav-link.active { color: #fff; background-color: #1c2128; border-color: #30363d #30363d #1c2128; }
     </style>
 </head>
 <body>
@@ -167,19 +222,63 @@ $sshCommand = "ssh -i {$pemSavePath} root@{$sshHost} \"cd {$projectPath} && git 
             </div>
         </div>
 
-        <!-- Painel Lateral: Upload Pem e Dica Terminal -->
+        <!-- Painel Lateral: Status PEM, Upload Pem e Texto Pem -->
         <div class="col-lg-4">
             
-            <!-- Upload da Chave PEM AJAX -->
+            <!-- Card de Status da Chave PEM -->
             <div class="card card-custom p-3 mb-4">
-                <h5 class="text-white mb-2"><i class="fas fa-key me-2 text-warning"></i> Upload de Chave SSH (.pem)</h5>
-                <p class="small text-muted mb-3">Envie a chave <code>chave.pem</code> para autenticação automática no servidor SSH.</p>
-                <form id="form-pem" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <input type="file" id="pem-file-input" name="pem_file" accept=".pem" class="form-control bg-dark text-white border-secondary" required>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="text-white m-0"><i class="fas fa-key me-2 text-warning"></i> Chave SSH (.pem)</h5>
+                    <span id="pem-status-badge" class="badge <?php echo $keyStatus['exists'] ? 'bg-success' : 'bg-danger'; ?>">
+                        <i class="fas <?php echo $keyStatus['exists'] ? 'fa-check-circle' : 'fa-times-circle'; ?> me-1"></i>
+                        <?php echo htmlspecialchars($keyStatus['label']); ?>
+                    </span>
+                </div>
+                <p class="small text-muted mb-0" id="pem-status-detail">
+                    <?php if ($keyStatus['exists']): ?>
+                        Arquivo: <code><?php echo htmlspecialchars($keyStatus['path']); ?></code>
+                    <?php else: ?>
+                        Nenhuma chave `.pem` encontrada no diretório do servidor.
+                    <?php endif; ?>
+                </p>
+            </div>
+
+            <!-- Abas para Upload de Arquivo ou Colar Texto -->
+            <div class="card card-custom p-3 mb-4">
+                <ul class="nav nav-tabs border-secondary mb-3" id="pemTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active small" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                            <i class="fas fa-upload me-1"></i> Enviar Arquivo
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link small" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste-pane" type="button" role="tab">
+                            <i class="fas fa-paste me-1"></i> Colar Texto
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="pemTabContent">
+                    <!-- Aba 1: Upload Arquivo -->
+                    <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+                        <form id="form-pem-file" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <input type="file" id="pem-file-input" name="pem_file" accept=".pem" class="form-control bg-dark text-white border-secondary" required>
+                            </div>
+                            <button type="submit" id="btn-upload-pem" class="btn btn-sm btn-outline-warning w-100"><i class="fas fa-upload me-1"></i> Enviar Arquivo PEM</button>
+                        </form>
                     </div>
-                    <button type="submit" id="btn-upload-pem" class="btn btn-sm btn-outline-warning w-100"><i class="fas fa-upload me-1"></i> Enviar Chave PEM</button>
-                </form>
+
+                    <!-- Aba 2: Colar Texto -->
+                    <div class="tab-pane fade" id="paste-pane" role="tabpanel">
+                        <form id="form-pem-text">
+                            <div class="mb-3">
+                                <textarea id="pem-text-input" name="pem_text" rows="5" class="form-control bg-dark text-white border-secondary font-monospace small" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" required></textarea>
+                            </div>
+                            <button type="submit" id="btn-save-pem-text" class="btn btn-sm btn-outline-warning w-100"><i class="fas fa-save me-1"></i> Salvar Texto da Chave</button>
+                        </form>
+                    </div>
+                </div>
             </div>
 
             <!-- Dica do Comando Linux -->
@@ -207,6 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentActionBadge = document.getElementById('current-action-badge');
     const alertArea = document.getElementById('alert-area');
     const actionBtns = document.querySelectorAll('.action-btn');
+    const pemStatusBadge = document.getElementById('pem-status-badge');
+    const pemStatusDetail = document.getElementById('pem-status-detail');
 
     function showAlert(msg, isSuccess = true) {
         alertArea.innerHTML = `
@@ -214,6 +315,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 <i class="fas fa-${isSuccess ? 'check-circle' : 'exclamation-triangle'} me-2"></i>${msg}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>`;
+    }
+
+    function updatePemKeyUI(keyStatus) {
+        if (!keyStatus) return;
+        if (keyStatus.exists) {
+            pemStatusBadge.className = 'badge bg-success';
+            pemStatusBadge.innerHTML = `<i class="fas fa-check-circle me-1"></i>${keyStatus.label}`;
+            pemStatusDetail.innerHTML = `Arquivo: <code>${keyStatus.path}</code>`;
+        } else {
+            pemStatusBadge.className = 'badge bg-danger';
+            pemStatusBadge.innerHTML = `<i class="fas fa-times-circle me-1"></i>Não Instalada`;
+            pemStatusDetail.innerHTML = `Nenhuma chave <code>.pem</code> encontrada no servidor.`;
+        }
     }
 
     function setExecutingState(actionName) {
@@ -234,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'migrate': 'Executando Migrações',
             'full_update': 'Atualização Completa',
             'commit_push': 'Git Commit & Push',
-            'upload_pem': 'Upload Chave PEM'
+            'upload_pem': 'Upload Chave PEM',
+            'save_pem_text': 'Salvar Texto PEM'
         };
 
         setExecutingState(actionLabels[action] || action);
@@ -258,6 +373,10 @@ document.addEventListener('DOMContentLoaded', () => {
             currentActionBadge.className = 'badge bg-info text-dark';
             currentActionBadge.textContent = data.action || 'Concluído';
             consoleOutput.textContent = data.output || 'Nenhum resultado retornado.';
+
+            if (data.keyStatus) {
+                updatePemKeyUI(data.keyStatus);
+            }
 
             if (data.message) {
                 showAlert(data.message, data.success !== false);
@@ -291,8 +410,8 @@ document.addEventListener('DOMContentLoaded', () => {
         runAction('commit_push', fd);
     });
 
-    // Evento Form Upload PEM
-    document.getElementById('form-pem').addEventListener('submit', (e) => {
+    // Evento Form Upload PEM (Arquivo)
+    document.getElementById('form-pem-file').addEventListener('submit', (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('pem-file-input');
         if (!fileInput.files.length) return;
@@ -301,6 +420,18 @@ document.addEventListener('DOMContentLoaded', () => {
         fd.append('action', 'upload_pem');
         fd.append('pem_file', fileInput.files[0]);
         runAction('upload_pem', fd);
+    });
+
+    // Evento Form Colar Texto PEM
+    document.getElementById('form-pem-text').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pemText = document.getElementById('pem-text-input').value;
+        if (!pemText.trim()) return;
+
+        const fd = new FormData();
+        fd.append('action', 'save_pem_text');
+        fd.append('pem_text', pemText);
+        runAction('save_pem_text', fd);
     });
 
     // Carrega o Git Status inicial via AJAX sem dar reload na página
