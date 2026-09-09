@@ -12,26 +12,29 @@ $sshScript   = '/usr/bin/python3 /var/www/html/py/ssh.py';
 $pemSaveDir  = '/var/www/html/py';
 $pemSavePath = $pemSaveDir . '/chave.pem';
 
-// Função auxiliar para executar comando via ssh.py (com fallback local se houver erro de permissão da chave)
+// Função auxiliar para executar comandos no servidor Linux local (com fallback de SSH)
 function executarComando($cmd, $sshScript, $projectPath) {
-    $cmdFull = "cd {$projectPath} && {$cmd} 2>&1";
+    // Adiciona safe.directory para evitar erros de propriedade de pasta entre www-data e root/ubuntu
+    $gitSafeConfig = "git config --global --add safe.directory {$projectPath} 2>/dev/null; ";
+    $cmdFull = "cd {$projectPath} && {$gitSafeConfig} {$cmd} 2>&1";
     
-    if (file_exists('/var/www/html/py/ssh.py')) {
+    // 1. Tenta a execução direta via shell do servidor Linux
+    $resDirect = shell_exec($cmdFull);
+    
+    if ($resDirect !== null && trim($resDirect) !== '') {
+        return trim($resDirect);
+    }
+    
+    // 2. Fallback via script Python SSH caso o shell direto não retorne nada
+    if (file_exists($sshScript)) {
         $comandoSSH = "/usr/bin/python3 {$sshScript} " . escapeshellarg($cmdFull) . " 2>&1";
-        $res = shell_exec($comandoSSH);
-        
-        // Se der erro de permissão na chave ou no arquivo, realiza o fallback direto e avisa o usuário
-        if ($res && (strpos($res, 'Permission denied') !== false || strpos($res, 'PermissionError') !== false || strpos($res, 'permiss') !== false)) {
-            $resDirect = shell_exec($cmdFull);
-            $diagMsg = "[AVISO DE SISTEMA: O script ssh.py retornou Erro de Permissão. Executado via Fallback Direto]\n";
-            $diagMsg .= "[DICA: Execute no servidor: 'chown -R www-data:www-data /var/www/html/py && chmod 600 /var/www/html/py/mykeyopenssh.pem']\n\n";
-            return $diagMsg . trim($resDirect);
+        $resSSH = shell_exec($comandoSSH);
+        if ($resSSH !== null && trim($resSSH) !== '') {
+            return trim($resSSH);
         }
-        return $res ? trim($res) : "Sem retorno do script ssh.py.";
-    } 
+    }
     
-    $res = shell_exec($cmdFull);
-    return $res ? trim($res) : "Sem retorno ou execução vazia.";
+    return "Sem retorno ou execução vazia.";
 }
 
 // Processador de Requisições AJAX (Retorna JSON)
