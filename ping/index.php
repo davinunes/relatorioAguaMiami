@@ -15,7 +15,18 @@ $site_esp   = DBEscape($_GET['site_esp'] ?? 'N/A');
 $ssid       = DBEscape($_GET['ssid'] ?? 'N/A');
 $sensorId   = (int)($_GET['sensorId'] ?? 0);
 $version    = DBEscape($_GET['version'] ?? 'N/A');
-$remote_ip  = DBEscape($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+// Captura o IP real considerando Reverse Proxy SSL (Caddy / Nginx / Cloudflare)
+$raw_ip = $_SERVER['HTTP_X_REAL_IP'] 
+    ?? $_SERVER['HTTP_X_FORWARDED_FOR'] 
+    ?? $_SERVER['REMOTE_ADDR'] 
+    ?? '0.0.0.0';
+
+if (strpos($raw_ip, ',') !== false) {
+    $ips = explode(',', $raw_ip);
+    $raw_ip = trim($ips[0]);
+}
+
+$remote_ip  = DBEscape($raw_ip);
 $log_final  = DBEscape($log_decoded !== false ? $log_decoded : "Erro decodificação");
 
 // 3. Query de Inserção (Mantendo histórico)
