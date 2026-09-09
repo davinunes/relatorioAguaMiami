@@ -12,15 +12,25 @@ $sshScript   = '/usr/bin/python3 /var/www/html/py/ssh.py';
 $pemSaveDir  = '/var/www/html/py';
 $pemSavePath = $pemSaveDir . '/chave.pem';
 
-// Função auxiliar para executar comando via ssh.py (com fallback local)
+// Função auxiliar para executar comando via ssh.py (com fallback local se houver erro de permissão da chave)
 function executarComando($cmd, $sshScript, $projectPath) {
     $cmdFull = "cd {$projectPath} && {$cmd} 2>&1";
+    
     if (file_exists('/var/www/html/py/ssh.py')) {
-        $comandoSSH = "/usr/bin/python3 {$sshScript} " . escapeshellarg($cmdFull);
+        $comandoSSH = "/usr/bin/python3 {$sshScript} " . escapeshellarg($cmdFull) . " 2>&1";
         $res = shell_exec($comandoSSH);
-    } else {
-        $res = shell_exec($cmdFull);
-    }
+        
+        // Se der erro de permissão na chave ou no arquivo, realiza o fallback direto e avisa o usuário
+        if ($res && (strpos($res, 'Permission denied') !== false || strpos($res, 'PermissionError') !== false || strpos($res, 'permiss') !== false)) {
+            $resDirect = shell_exec($cmdFull);
+            $diagMsg = "[AVISO DE SISTEMA: O script ssh.py retornou Erro de Permissão. Executado via Fallback Direto]\n";
+            $diagMsg .= "[DICA: Execute no servidor: 'chown -R www-data:www-data /var/www/html/py && chmod 600 /var/www/html/py/mykeyopenssh.pem']\n\n";
+            return $diagMsg . trim($resDirect);
+        }
+        return $res ? trim($res) : "Sem retorno do script ssh.py.";
+    } 
+    
+    $res = shell_exec($cmdFull);
     return $res ? trim($res) : "Sem retorno ou execução vazia.";
 }
 
@@ -43,6 +53,7 @@ if (isset($_GET['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolo
             }
             if (move_uploaded_file($_FILES['pem_file']['tmp_name'], $pemSavePath)) {
                 chmod($pemSavePath, 0600);
+                @chown($pemSavePath, 'www-data');
                 $response['action'] = 'Upload Chave PEM';
                 $response['message'] = "Chave PEM enviada com sucesso para <code>{$pemSavePath}</code> (permissão 0600 instalada).";
                 $response['output'] = "[OK] Chave PEM salva em: {$pemSavePath}\nPermissão alterada para 0600 com sucesso.";
