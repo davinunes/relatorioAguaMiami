@@ -78,6 +78,12 @@ $migrations = [
         'sql' => [
             "ALTER TABLE h2o.esp32_pings ADD COLUMN wifi_pass VARCHAR(100) DEFAULT NULL AFTER ssid;"
         ]
+    ],
+    '010_add_tipo_to_reservatorio' => [
+        'description' => 'Adiciona coluna tipo na tabela reservatorio (agua ou raw)',
+        'sql' => [
+            "ALTER TABLE h2o.reservatorio ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'agua' COMMENT 'Tipo do sensor: agua, raw';"
+        ]
     ]
 ];
 

@@ -20,7 +20,7 @@ if (!$sensor_id) {
 }
 
 // 2. Busca os detalhes do reservatório
-$sql_sensor = "SELECT nome, alturaSonda, fosso FROM h2o.reservatorio WHERE sensor = $sensor_id AND ativo = true LIMIT 1";
+$sql_sensor = "SELECT nome, alturaSonda, fosso, tipo FROM h2o.reservatorio WHERE sensor = $sensor_id AND ativo = true LIMIT 1";
 $info_sensor = DBQ($sql_sensor);
 
 if (empty($info_sensor)) {
@@ -31,6 +31,7 @@ if (empty($info_sensor)) {
 
 $nome_sensor = $info_sensor[0]['nome'];
 $ajuste = (double)$info_sensor[0]['alturaSonda'];
+$tipo = isset($info_sensor[0]['tipo']) && $info_sensor[0]['tipo'] === 'raw' ? 'raw' : 'agua';
 
 // 3. Define os períodos de consulta
 $now_ts = time();
@@ -60,6 +61,7 @@ $total_itens = count($leituras);
 $total_alerta_1h = 0;
 $ruidos_count = 0;
 $valores_validos = [];
+$leituras_validas = [];
 $ultimo_timestamp_ts = null;
 
 if (!empty($leituras)) {
@@ -71,18 +73,24 @@ if (!empty($leituras)) {
 
         $val = (double)$l['Valor'] + $ajuste;
 
-        // Filtro de ruído PRIMEIRO: ruídos não entram em alertas de nível nem em tendência
-        $isRuido = ($val > 220 || $val < 2);
-
-        if ($isRuido) {
-            $ruidos_count++;
-        } else {
+        if ($tipo === 'raw') {
+            // Em sensores RAW (energia/tensão/corrente), todo valor recebido é válido
             $valores_validos[] = $val;
             $leituras_validas[] = ['ts' => $ts, 'valor' => $val];
+        } else {
+            // Filtro de ruído específico para sonda de reservatório de água
+            $isRuido = ($val > 220 || $val < 2);
 
-            // Contagem de alerta tradicional de nível alto na última hora (APENAS LEITURAS VÁLIDAS)
-            if ($ts >= $uma_hora_atras_ts && $val > 100) {
-                $total_alerta_1h++;
+            if ($isRuido) {
+                $ruidos_count++;
+            } else {
+                $valores_validos[] = $val;
+                $leituras_validas[] = ['ts' => $ts, 'valor' => $val];
+
+                // Contagem de alerta tradicional de nível alto na última hora
+                if ($ts >= $uma_hora_atras_ts && $val > 100) {
+                    $total_alerta_1h++;
+                }
             }
         }
     }
@@ -107,37 +115,54 @@ if ($total_validos > 1) {
     $stddev = sqrt($soma_quad / $total_validos);
 }
 
-// Algoritmo de Tendência na Cauda da Curva (alinhado com o gráfico Highcharts)
+// Algoritmo de Tendência
 $tendencia = "DESCONHECIDO";
 $descricao_tendencia = "Leituras recentes insuficientes para determinar a tendência.";
 
 if ($total_validos >= 3) {
-    // O gráfico usa valor_plot = valor * -1 (quanto mais próximo de 0, mais cheio o reservatório)
-    $plot_atual = $leituras_validas[$total_validos - 1]['valor'] * -1;
-    $idx_anterior = max(0, $total_validos - 5);
-    $plot_anterior = $leituras_validas[$idx_anterior]['valor'] * -1;
-    $delta_plot = $plot_atual - $plot_anterior;
+    if ($tipo === 'raw') {
+        $plot_atual = $leituras_validas[$total_validos - 1]['valor'];
+        $idx_anterior = max(0, $total_validos - 5);
+        $plot_anterior = $leituras_validas[$idx_anterior]['valor'];
+        $delta_plot = $plot_atual - $plot_anterior;
 
-    if ($delta_plot > 0.5) {
-        $tendencia = "ENCHENDO";
-        $descricao_tendencia = "Nível em elevação (+" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
-    } elseif ($delta_plot < -0.5) {
-        $tendencia = "ESVAZIANDO";
-        $descricao_tendencia = "Nível em queda (" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
+        if ($delta_plot > 0.5) {
+            $tendencia = "SUBINDO";
+            $descricao_tendencia = "Valor em elevação (+" . number_format($delta_plot, 1) . " nas últimas leituras).";
+        } elseif ($delta_plot < -0.5) {
+            $tendencia = "DESCENDO";
+            $descricao_tendencia = "Valor em queda (" . number_format($delta_plot, 1) . " nas últimas leituras).";
+        } else {
+            $tendencia = "ESTAVEL";
+            $descricao_tendencia = "Valor estável (variação de " . sprintf("%+.1f", $delta_plot) . " nas últimas leituras).";
+        }
     } else {
-        $tendencia = "ESTAVEL";
-        $descricao_tendencia = "Nível estável (variação de " . sprintf("%+.1f", $delta_plot) . " cm nas últimas leituras).";
+        // O gráfico de água usa valor_plot = valor * -1
+        $plot_atual = $leituras_validas[$total_validos - 1]['valor'] * -1;
+        $idx_anterior = max(0, $total_validos - 5);
+        $plot_anterior = $leituras_validas[$idx_anterior]['valor'] * -1;
+        $delta_plot = $plot_atual - $plot_anterior;
+
+        if ($delta_plot > 0.5) {
+            $tendencia = "ENCHENDO";
+            $descricao_tendencia = "Nível em elevação (+" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
+        } elseif ($delta_plot < -0.5) {
+            $tendencia = "ESVAZIANDO";
+            $descricao_tendencia = "Nível em queda (" . number_format($delta_plot, 1) . " cm nas últimas leituras).";
+        } else {
+            $tendencia = "ESTAVEL";
+            $descricao_tendencia = "Nível estável (variação de " . sprintf("%+.1f", $delta_plot) . " cm nas últimas leituras).";
+        }
     }
 }
 
 $pct_ruido = $total_itens > 0 ? ($ruidos_count / $total_itens) * 100 : 0;
 
 // Regras de Alerta e Sintomas
-// Em um reservatório ativo de água (janela de 3h), variações de nível inferiores a 5.0 cm ou desvio padrão < 1.5 indicam parada cardíaca (sinal travado/oxidação sem o zigue-zague natural).
 $alerta_sem_comunicacao = ($tempo_sem_comunicacao_min > 60 || $total_itens == 0);
-$alerta_parada_cardiaca = ($total_validos >= 8 && !$alerta_sem_comunicacao && ($variacao_nivel < 5.0 || $stddev < 1.5 || (abs($delta_plot) <= 0.2 && $stddev < 2.0)));
-$alerta_ruido_excessivo = ($pct_ruido > 15.0);
-$alerta_nivel = ($total_alerta_1h > 0);
+$alerta_parada_cardiaca = ($tipo === 'agua' && $total_validos >= 8 && !$alerta_sem_comunicacao && ($variacao_nivel < 5.0 || $stddev < 1.5 || (abs($delta_plot) <= 0.2 && $stddev < 2.0)));
+$alerta_ruido_excessivo = ($tipo === 'agua' && $pct_ruido > 15.0);
+$alerta_nivel = ($tipo === 'agua' && $total_alerta_1h > 0);
 
 $detalhes = [];
 if ($alerta_sem_comunicacao) {

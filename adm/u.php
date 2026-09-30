@@ -24,13 +24,17 @@ if ($vr_raw === '' || $vr_raw === null) {
     $valor_referencia_sql = "'" . $vr_escaped . "'";
 }
 
+$tipo = (!empty($_POST['tipo']) && strtolower(trim($_POST['tipo'])) === 'raw') ? 'raw' : 'agua';
+$tipo = DBEscape($tipo);
+
 // Constrói a query de forma segura
 $sql  = "UPDATE h2o.reservatorio SET ";
 $sql .= " alturaSonda = '$alturaSonda',";
 $sql .= " fosso = '$fosso',";
 $sql .= " nome = '$nome',";
 $sql .= " ativo = '$ativo',";
-$sql .= " valor_referencia = $valor_referencia_sql";
+$sql .= " valor_referencia = $valor_referencia_sql,";
+$sql .= " tipo = '$tipo'";
 $sql .= " WHERE id = '$id'";
 
 if(DBExecute($sql)){

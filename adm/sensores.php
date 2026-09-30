@@ -41,8 +41,10 @@ $dataInicioLimpeza = '2020-01-01T00:00';
         
         <?php if ($caixas): foreach($caixas as $c): ?>
             <li class="collection-item avatar">
-                <i class="material-icons circle <?= $c['ativo'] ? 'green' : 'grey' ?>">sensors</i>
+                <i class="material-icons circle <?= $c['ativo'] ? ($c['tipo'] === 'raw' ? 'orange' : 'green') : 'grey' ?>"><?= $c['tipo'] === 'raw' ? 'bolt' : 'sensors' ?></i>
                 <span class="title"><strong><?= htmlspecialchars($c['nome']) ?></strong></span>
+                <span class="new badge <?= $c['tipo'] === 'raw' ? 'orange' : 'blue' ?> left" data-badge-caption="" style="margin-right: 10px;"><?= $c['tipo'] === 'raw' ? '⚡ RAW / Energia' : '💧 Água' ?></span>
+                <div style="clear: both; margin-top: 5px;"></div>
                 <p>
                     ID do Sensor: <?= htmlspecialchars($c['sensor']) ?> | 
                     Profundidade do Poço: <?= htmlspecialchars($c['fosso']) ?> cm <br>
@@ -57,6 +59,7 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                        data-alturasonda="<?= $c['alturaSonda'] ?>"
                        data-fosso="<?= $c['fosso'] ?>"
                        data-ativo="<?= $c['ativo'] ?>"
+                       data-tipo="<?= htmlspecialchars($c['tipo'] ?? 'agua') ?>"
                        data-valorreferencia="<?= $c['valor_referencia'] ?>">
                        <i class="material-icons">edit</i>
                     </a>
@@ -129,7 +132,14 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col s12">
+                    <div class="col s12 m6">
+                        <label for="editar-tipo" style="font-size: 0.9rem; color: #666;"><i class="material-icons tiny left">category</i>Tipo do Sensor</label>
+                        <select id="editar-tipo" class="browser-default" style="margin-top: 5px; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                            <option value="agua">💧 Água (Reservatório / Distância)</option>
+                            <option value="raw">⚡ RAW (Valor Bruto / Tensão / Corrente / Energia)</option>
+                        </select>
+                    </div>
+                    <div class="col s12 m6" style="margin-top: 25px;">
                         <div class="switch">
                             <label>
                                 Inativo
@@ -206,11 +216,18 @@ $dataInicioLimpeza = '2020-01-01T00:00';
                     </div>
                 </div>
                 <div class="row">
-                    <div class="input-field col s12">
+                    <div class="input-field col s12 m6">
                         <i class="material-icons prefix">space_bar</i>
                         <input id="criar-valorreferencia" type="number" step="0.01" class="validate" placeholder="Deixe vazio para calcular automaticamente">
-                        <label for="criar-valorreferencia">Valor de Referência (cm) - Limite da Zona Normal (inclui Fator de Correção)</label>
-                        <span class="helper-text">Define o teto da zona Azul (Normal). Se vazio, usa o mínimo dos vales calculado nos últimos 7 dias.</span>
+                        <label for="criar-valorreferencia">Valor de Referência (cm)</label>
+                        <span class="helper-text">Teto da zona Normal (Água).</span>
+                    </div>
+                    <div class="col s12 m6" style="margin-top: 15px;">
+                        <label for="criar-tipo" style="font-size: 0.9rem; color: #666;"><i class="material-icons tiny left">category</i>Tipo do Sensor</label>
+                        <select id="criar-tipo" class="browser-default" style="margin-top: 5px; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                            <option value="agua" selected>💧 Água (Reservatório / Distância)</option>
+                            <option value="raw">⚡ RAW (Valor Bruto / Tensão / Corrente / Energia)</option>
+                        </select>
                     </div>
                 </div>
             </form>
@@ -283,6 +300,7 @@ $(document).ready(function(){
         const fosso = $(this).data("fosso");
         const ativo = $(this).data("ativo");
         const valorreferencia = $(this).data("valorreferencia");
+        const tipo = $(this).data("tipo") || 'agua';
 
         // Preenche o modal de edição com os dados
         $('#editar-nome-sensor').text(nome);
@@ -292,6 +310,7 @@ $(document).ready(function(){
         $('#editar-alturasonda').val(alturasonda);
         $('#editar-fosso').val(fosso);
         $('#editar-valorreferencia').val(valorreferencia && valorreferencia !== '' && valorreferencia !== null ? valorreferencia : '');
+        $('#editar-tipo').val(tipo);
         $('#editar-ativo').prop('checked', ativo == 1); // Marca o switch se estiver ativo
         
         // Atualiza os labels para o estado 'active' se houver conteúdo
@@ -315,7 +334,8 @@ $(document).ready(function(){
             nome_sensor: $("#criar-nome").val(),
             fosso: $("#criar-fosso").val(),
             altura_sonda: $("#criar-alturasonda").val(),
-            valor_referencia: $("#criar-valorreferencia").val()
+            valor_referencia: $("#criar-valorreferencia").val(),
+            tipo: $("#criar-tipo").val()
         };
 
         // Validação simples
@@ -340,6 +360,7 @@ $(document).ready(function(){
             alturaSonda: $("#editar-alturasonda").val(),
             fosso: $("#editar-fosso").val(),
             valor_referencia: $("#editar-valorreferencia").val(),
+            tipo: $("#editar-tipo").val(),
             ativo: $("#editar-ativo").is(':checked') ? 1 : 0 // Pega o valor do switch
         };
         

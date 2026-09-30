@@ -45,6 +45,7 @@ if (empty($caixa)) {
 $caixa = $caixa[0];
 $nome = $caixa['nome'];
 $ajuste = (double)$caixa['alturaSonda'];
+$tipo = isset($caixa['tipo']) && $caixa['tipo'] === 'raw' ? 'raw' : 'agua';
 $valor_referencia = isset($caixa['valor_referencia']) && $caixa['valor_referencia'] !== null && $caixa['valor_referencia'] !== '' ? (double)$caixa['valor_referencia'] : null;
 
 $debug = (filter_input(INPUT_GET, 'debug') === 'true');
@@ -62,20 +63,25 @@ $intervalo = 0;
 date_default_timezone_set('America/Sao_Paulo');
 
 foreach ($historico as $h) {
-    $h['Valor'] += $ajuste;
-    $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
+    if ($tipo === 'raw') {
+        $valor_plot = (double)$h['Valor'] + $ajuste;
+    } else {
+        $h['Valor'] += $ajuste;
+        $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
 
-    if ($isRuido && !$debug) {
-        $timestamp_local = strtotime($h['timestamp'] . ' UTC');
-        $timestamp_js = $timestamp_local * 1000;
-        $ruidos[] = [
-            'id' => $h['id'],
-            'timestamp' => $h['timestamp'],
-            'timestamp_js' => $timestamp_js,
-            'valor' => $h['Valor'],
-            'valor_plot' => $h['Valor'] * -1
-        ];
-        continue;
+        if ($isRuido && !$debug) {
+            $timestamp_local = strtotime($h['timestamp'] . ' UTC');
+            $timestamp_js = $timestamp_local * 1000;
+            $ruidos[] = [
+                'id' => $h['id'],
+                'timestamp' => $h['timestamp'],
+                'timestamp_js' => $timestamp_js,
+                'valor' => $h['Valor'],
+                'valor_plot' => $h['Valor'] * -1
+            ];
+            continue;
+        }
+        $valor_plot = $h['Valor'] * -1;
     }
 
     if ($anterior) {
@@ -86,7 +92,6 @@ foreach ($historico as $h) {
     // Converte timestamp para milissegundos para o JavaScript (UTC)
     $timestamp_local = strtotime($h['timestamp'] . ' UTC');
     $timestamp_js = $timestamp_local * 1000; 
-    $valor_plot = $h['Valor'] * -1;
 
     if ($intervalo > 1200) { // Insere ponto nulo para criar um buraco no gráfico se intervalo > 20 min (1200s)
         $seriesData[] = [$timestamp_js, null];
@@ -99,85 +104,90 @@ $sql_ultimo = "SELECT `timestamp` FROM h2o.leituras WHERE sensor = ".$sensor_id.
 $ultimo = DBQ($sql_ultimo);
 $ult_att = $ultimo ? date("d/m/Y H:i:s", strtotime($ultimo[0]['timestamp'])) : 'N/A';
 
-// Série do ponto de referência "Now/Agora"
-$now_string = $end_param ? $end_param : 'now';
-$now_timestamp_js = strtotime($now_string. ' UTC') * 1000;
-$yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
-
-// Obtém o valor de comparação para definir as faixas de nível (Ponto de Virada)
-// Prioridade 1: valor_referencia manual (já vem ajustado com alturaSonda)
-// Prioridade 2: método automático (retorna Valor bruto, precisa somar ajuste)
-// Fallback: -35 cm (~35cm abaixo do topo)
-if ($valor_referencia !== null) {
-    $valor_plot_comp = $valor_referencia * -1;
-} else {
-    $valor_comparacao = get_sensor_comparison_value($sensor_id);
-    $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
-}
-
-$plotBands = [
-    [
-        'from' => $valor_plot_comp, 
-        'to' => 0, 
-        'color' => 'rgba(68, 170, 213, 0.1)', // Azul - Zona de Operação Normal (Suave)
-        'label' => ['text' => 'Normal', 'style' => ['color' => '#44AAD5']]
-    ],
-    [
-        'from' => -100, 
-        'to' => $valor_plot_comp, 
-        'color' => 'rgba(255, 165, 0, 0.1)', // Laranja - Alerta/Baixando
-        'label' => ['text' => 'Atencao', 'style' => ['color' => '#FFA500']]
-    ],
-    [
-        'from' => -240, 
-        'to' => -100, 
-        'color' => 'rgba(227, 22, 22, 0.1)', // Vermelho - Critico (Vazio)
-        'label' => ['text' => 'Critico', 'style' => ['color' => '#E31616']]
-    ]
-];
-
-$nowSeries = [
-    'name' => 'FundoDoReservatorio',
-    'data' => [
-        [$yesterday_timestamp_js, -240], // Ponto de 24 horas atrás
-        [$now_timestamp_js, -240]        // Ponto atual
-    ],
-    'marker' => [
-        'enabled' => true,
-        'symbol' => 'square',
-        'radius' => 1,
-        'fillColor' => '#000000'
-    ],
-    'lineWidth' => 0,
-    'enableMouseTracking' => false
-];
-
 $seriesList = [
     [
         'name' => $nome,
         'data' => $seriesData,
         'color' => "rgb(067, 067, 072)"
-    ],
-    $nowSeries
+    ]
 ];
 
-if ($shadow) {
-    $shadowData = [];
-    foreach ($ruidos as $r) {
-        $shadowData[] = [$r['timestamp_js'], $r['valor_plot']];
+$yAxisOptions = [
+    'title' => ['text' => ($tipo === 'raw' ? 'Valor' : 'centimetros')]
+];
+
+if ($tipo === 'agua') {
+    // Série do ponto de referência "Now/Agora"
+    $now_string = $end_param ? $end_param : 'now';
+    $now_timestamp_js = strtotime($now_string. ' UTC') * 1000;
+    $yesterday_timestamp_js = strtotime($now_string . ' -24 hours'. ' UTC') * 1000;
+
+    // Obtém o valor de comparação para definir as faixas de nível (Ponto de Virada)
+    if ($valor_referencia !== null) {
+        $valor_plot_comp = $valor_referencia * -1;
+    } else {
+        $valor_comparacao = get_sensor_comparison_value($sensor_id);
+        $valor_plot_comp = ($valor_comparacao !== null) ? ($valor_comparacao + $ajuste) * -1 : -35;
     }
-    $seriesList[] = [
-        'name' => 'Ruídos (Sombra)',
-        'data' => $shadowData,
-        'color' => 'rgba(255, 99, 71, 0.6)',
-        'dashStyle' => 'ShortDot',
-        'lineWidth' => 1,
-        'marker' => [
-            'enabled' => true,
-            'radius' => 3,
-            'symbol' => 'circle'
+
+    $plotBands = [
+        [
+            'from' => $valor_plot_comp, 
+            'to' => 0, 
+            'color' => 'rgba(68, 170, 213, 0.1)', // Azul - Zona de Operação Normal (Suave)
+            'label' => ['text' => 'Normal', 'style' => ['color' => '#44AAD5']]
+        ],
+        [
+            'from' => -100, 
+            'to' => $valor_plot_comp, 
+            'color' => 'rgba(255, 165, 0, 0.1)', // Laranja - Alerta/Baixando
+            'label' => ['text' => 'Atencao', 'style' => ['color' => '#FFA500']]
+        ],
+        [
+            'from' => -240, 
+            'to' => -100, 
+            'color' => 'rgba(227, 22, 22, 0.1)', // Vermelho - Critico (Vazio)
+            'label' => ['text' => 'Critico', 'style' => ['color' => '#E31616']]
         ]
     ];
+
+    $nowSeries = [
+        'name' => 'FundoDoReservatorio',
+        'data' => [
+            [$yesterday_timestamp_js, -240], // Ponto de 24 horas atrás
+            [$now_timestamp_js, -240]        // Ponto atual
+        ],
+        'marker' => [
+            'enabled' => true,
+            'symbol' => 'square',
+            'radius' => 1,
+            'fillColor' => '#000000'
+        ],
+        'lineWidth' => 0,
+        'enableMouseTracking' => false
+    ];
+
+    $seriesList[] = $nowSeries;
+    $yAxisOptions['plotBands'] = $plotBands;
+
+    if ($shadow) {
+        $shadowData = [];
+        foreach ($ruidos as $r) {
+            $shadowData[] = [$r['timestamp_js'], $r['valor_plot']];
+        }
+        $seriesList[] = [
+            'name' => 'Ruídos (Sombra)',
+            'data' => $shadowData,
+            'color' => 'rgba(255, 99, 71, 0.6)',
+            'dashStyle' => 'ShortDot',
+            'lineWidth' => 1,
+            'marker' => [
+                'enabled' => true,
+                'radius' => 3,
+                'symbol' => 'circle'
+            ]
+        ];
+    }
 }
 
 // Monta o array de opções do Highcharts
@@ -191,10 +201,7 @@ $chartOptions = [
         'type' => 'datetime',
         'title' => ['text' => 'Data/Hora'],
     ],
-    'yAxis' => [
-        'title' => ['text' => 'centimetros'],
-        'plotBands' => $plotBands
-    ],
+    'yAxis' => $yAxisOptions,
     'legend' => ['enabled' => false],
     'credits' => ['enabled' => false],
     'time' => [

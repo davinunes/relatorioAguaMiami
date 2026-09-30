@@ -32,9 +32,12 @@ if ($vr_raw === '' || $vr_raw === null) {
     $valor_referencia_sql = "'" . $vr_escaped . "'";
 }
 
+$tipo = (!empty($_POST['tipo']) && strtolower(trim($_POST['tipo'])) === 'raw') ? 'raw' : 'agua';
+$tipo = DBEscape($tipo);
+
 // Constrói a query de forma segura
-$sql  = "INSERT INTO h2o.reservatorio (sensor, nome, fosso, alturaSonda, ativo, valor_referencia) ";
-$sql .= "VALUES ('$sensor_id', '$nome', '$fosso', '$alturaSonda', '$ativo', $valor_referencia_sql)";
+$sql  = "INSERT INTO h2o.reservatorio (sensor, nome, fosso, alturaSonda, ativo, valor_referencia, tipo) ";
+$sql .= "VALUES ('$sensor_id', '$nome', '$fosso', '$alturaSonda', '$ativo', $valor_referencia_sql, '$tipo')";
 
 if(DBExecute($sql)){
     echo "Sensor criado com sucesso!";

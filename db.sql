@@ -74,6 +74,8 @@ CREATE TABLE `reservatorio` (
   `nome` varchar(100) NOT NULL COMMENT 'nome do reservatório',
   `alturaSonda` int(10) unsigned DEFAULT NULL COMMENT 'Altura da Sonda',
   `ativo` tinyint(1) DEFAULT 1 COMMENT 'Se o reservatorio está ativo ou não',
+  `valor_referencia` decimal(8,2) DEFAULT NULL COMMENT 'Valor ajustado em cm que define o teto da zona Normal',
+  `tipo` varchar(20) NOT NULL DEFAULT 'agua' COMMENT 'Tipo do sensor: agua, raw',
   PRIMARY KEY (`id`),
   KEY `idx_sensor_ativo` (`sensor`,`ativo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Armazena os dados do reservatorio';

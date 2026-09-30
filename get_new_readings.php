@@ -34,6 +34,8 @@ if (empty($caixa)) {
 $caixa = $caixa[0];
 $ajuste = (double)$caixa['alturaSonda'];
 
+$tipo = isset($caixa['tipo']) && $caixa['tipo'] === 'raw' ? 'raw' : 'agua';
+
 // Busca apenas leituras estritamente maiores que o timestamp fornecido
 $sql = "SELECT * FROM h2o.leituras WHERE sensor = $sensor_id AND `timestamp` > '$since_sql' ORDER BY id ASC";
 $leituras = DBQ($sql);
@@ -43,25 +45,30 @@ $ruidos = [];
 date_default_timezone_set('America/Sao_Paulo');
 
 foreach ($leituras as $h) {
-    $h['Valor'] += $ajuste;
-    $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
+    if ($tipo === 'raw') {
+        $valor_plot = (double)$h['Valor'] + $ajuste;
+    } else {
+        $h['Valor'] += $ajuste;
+        $isRuido = ($h['Valor'] > 220 || $h['Valor'] < 2);
 
-    if ($isRuido && !$debug) {
-        $timestamp_local = strtotime($h['timestamp'] . ' UTC');
-        $timestamp_js = $timestamp_local * 1000;
-        $ruidos[] = [
-            'id' => $h['id'],
-            'timestamp' => $h['timestamp'],
-            'timestamp_js' => $timestamp_js,
-            'valor' => $h['Valor'],
-            'valor_plot' => $h['Valor'] * -1
-        ];
-        continue;
+        if ($isRuido && !$debug) {
+            $timestamp_local = strtotime($h['timestamp'] . ' UTC');
+            $timestamp_js = $timestamp_local * 1000;
+            $ruidos[] = [
+                'id' => $h['id'],
+                'timestamp' => $h['timestamp'],
+                'timestamp_js' => $timestamp_js,
+                'valor' => $h['Valor'],
+                'valor_plot' => $h['Valor'] * -1
+            ];
+            continue;
+        }
+
+        $valor_plot = $h['Valor'] * -1;
     }
 
     $timestamp_local = strtotime($h['timestamp'] . ' UTC');
     $timestamp_js = $timestamp_local * 1000;
-    $valor_plot = $h['Valor'] * -1;
 
     $newPoints[] = [
         'timestamp_js' => $timestamp_js,
