@@ -1,4 +1,4 @@
-<!-- removido autorefresh -->
+<meta http-equiv="refresh" content="180" />
 
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 
@@ -108,7 +108,7 @@ $caixas = DBQ($sql);
 <html>
 <head>
     <title>Seus Gráficos</title>
-    <!-- removido autorefresh -->
+    <meta http-equiv="refresh" content="180" />
  <!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">  -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -244,104 +244,10 @@ Highcharts.setOptions({
     }
 });
 
-// Global object to store active chart instances and their metadata
-var chartInstances = {};
-var updateInterval = 120; // seconds
+// Timer para a barra de atualização da página
+var updateInterval = 180; // segundos
 var progress = 0;
 var timer = null;
-
-// Function to update charts dynamically
-function updateChartsData() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isDebug = urlParams.get('debug') === 'true';
-    const isShadow = urlParams.get('shadow') === 'true';
-
-    for (const sensorId in chartInstances) {
-        if (!chartInstances.hasOwnProperty(sensorId)) continue;
-        
-        const instance = chartInstances[sensorId];
-        const chart = instance.chart;
-        const lastTimestampJs = instance.lastTimestampJs;
-        
-        if (!lastTimestampJs) continue;
-        
-        const sinceSeconds = Math.floor(lastTimestampJs / 1000);
-        
-        $.ajax({
-            url: 'get_new_readings.php',
-            type: 'GET',
-            data: {
-                sensor: sensorId,
-                since: sinceSeconds,
-                debug: isDebug ? 'true' : 'false'
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.ruidos && response.ruidos.length > 0) {
-                    if (!instance.ruidos) instance.ruidos = [];
-                    instance.ruidos = instance.ruidos.concat(response.ruidos);
-
-                    if (isShadow) {
-                        const shadowSeries = chart.series.find(s => s.name === 'Ruídos (Sombra)');
-                        if (shadowSeries) {
-                            response.ruidos.forEach(function(r) {
-                                shadowSeries.addPoint([r.timestamp_js, r.valor_plot], false);
-                            });
-                        }
-                    }
-                }
-
-                if (response.success && response.newPoints && response.newPoints.length > 0) {
-                    const series = chart.series[0];
-                    let maxTimestampJs = lastTimestampJs;
-                    
-                    response.newPoints.forEach(function(pt) {
-                        const currentTimestampJs = pt.timestamp_js;
-                        const lastPointTimestampJs = maxTimestampJs;
-                        const intervalSeconds = (currentTimestampJs - lastPointTimestampJs) / 1000;
-                        
-                        // Insert null point if there is a gap greater than 20 minutes (1200 seconds)
-                        if (intervalSeconds > 1200) {
-                            series.addPoint([currentTimestampJs - 1000, null], false);
-                        }
-                        
-                        series.addPoint([currentTimestampJs, pt.valor_plot], false);
-                        maxTimestampJs = Math.max(maxTimestampJs, currentTimestampJs);
-                    });
-                    
-                    instance.lastTimestampJs = maxTimestampJs;
-                    
-                    if (response.ult_att) {
-                        chart.setTitle(null, { text: 'Ultima atualização: ' + response.ult_att });
-                    }
-                    
-                    // Update the "Now" reference line (series[1])
-                    const d = new Date();
-                    const now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
-                    const yesterday = now - 24 * 60 * 60 * 1000;
-                    chart.series[1].setData([
-                        [yesterday, -240, '24h antes'],
-                        [now, -240, 'Agora']
-                    ], false);
-                    
-                    chart.redraw();
-                } else {
-                    // Update the "Now" line to keep it moving forward
-                    const d = new Date();
-                    const now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
-                    const yesterday = now - 24 * 60 * 60 * 1000;
-                    chart.series[1].setData([
-                        [yesterday, -240, '24h antes'],
-                        [now, -240, 'Agora']
-                    ], true);
-                }
-            },
-            error: function() {
-                console.error("Erro ao atualizar o sensor " + sensorId);
-            }
-        });
-    }
-}
 
 // --- A MÁGICA ACONTECE AQUI ---
 $(document).ready(function() {
@@ -365,8 +271,7 @@ $(document).ready(function() {
             let x = (progress / updateInterval) * 100;
             $("#timer").css("width", x + "%");
             if (progress >= updateInterval) {
-                progress = 0;
-                updateChartsData();
+                location.reload();
             }
         }, 1000);
     }
@@ -391,26 +296,8 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    // Find the last valid timestamp in the initial series data BEFORE Highcharts mutates the options object
-                    const seriesData = response.chartOptions.series[0].data;
-                    let maxTimestampJs = 0;
-                    if (seriesData) {
-                        for (let i = seriesData.length - 1; i >= 0; i--) {
-                            const pt = seriesData[i];
-                            if (pt && pt[0] !== null && pt[0] !== undefined) {
-                                maxTimestampJs = Math.max(maxTimestampJs, pt[0]);
-                            }
-                        }
-                    }
-
                     // Se sucesso, renderiza o gráfico com os dados recebidos
-                    const chart = Highcharts.chart(containerId, response.chartOptions);
-                    
-                    chartInstances[sensorId] = {
-                        chart: chart,
-                        lastTimestampJs: maxTimestampJs,
-                        ruidos: response.ruidos || []
-                    };
+                    Highcharts.chart(containerId, response.chartOptions);
                 } else {
                     // Se falhar (ex: sem dados), mostra a mensagem de erro
                     container.html("<div class='card-panel red lighten-4'><p class='center-align'>" + response.message + "</p></div>");
